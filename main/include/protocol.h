@@ -1,11 +1,100 @@
 #ifndef _PROTOCOL_H_
 #define _PROTOCOL_H_
 
+/**
+ * @brief Controller BLE Protocol
+ * @defgroup Controller BLE Protocol
+ * @{  
+ */
+
 #include <stdint.h>
 #include <stddef.h>
 
+#include "uthash.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Special Data Features
+
+#define PRO2_DATA_EMPTY_LEN     0x0e    // notify 0e/1e 0x00 len 14
+#define NS2_DATA_EMPTY_LEN      0x21    // write 0x0016 0x00 len 33
+
 /**
- * feature flags
+ * @defgroup Command Handlers
+ * @{
+ */
+
+/**
+ * @brief gatt response
+ */
+typedef struct {
+    uint8_t cmd;
+    uint8_t subcmd;
+    uint8_t* rsp_data;
+    uint16_t rsp_len;
+} pro2_gatt_rsp_t;
+
+/**
+ * @brief command handler function prototype, the handler return response data length
+ */
+typedef uint8_t (*cmd_handler)(const uint8_t subcmd, const uint16_t payload_len, 
+    const uint8_t* data_in, uint8_t* data_out);
+
+/**
+ * @brief command handler entry
+ */
+typedef struct {
+    uint8_t cmd;
+    cmd_handler handler;
+    UT_hash_handle hh;
+} g_cmd_handler_entry_t;
+
+/**
+ * @brief command handler hashmap
+ */
+extern g_cmd_handler_entry_t* g_cmd_handlers;
+
+/**
+ * @brief register a command handler
+ * 
+ * @param cmd command types
+ * @param handler command handler function
+ * @return int 0->success, -1->failed
+ */
+int cmd_handler_register(uint8_t cmd, cmd_handler handler);
+
+/**
+ * @brief find a command handler
+ * 
+ * @param cmd command types
+ * @return cmd_handler command handler function, if NULL, not handler matched
+ */
+cmd_handler cmd_handler_find(uint8_t cmd);
+
+/**
+ * @brief init command system, register all statically suported command handlers
+ * 
+ * @return int 0->success, <0->failed
+ */
+int cmd_system_init();
+
+/**
+ * @brief process received command payload
+ * 
+ * @param rsp gatt response
+ * @param data_in received data
+ * @param payload_len received data length
+ * @return int 0->success, -1->failed
+ */
+int cmd_process(pro2_gatt_rsp_t* rsp, uint8_t* data_in, uint16_t payload_len);
+
+/** @} */
+
+/**
+ * @defgroup Feature Flags
+ * @{
  */
 #define FEATURE_0C_01_BUTTON_STATE          (0x01U)
 #define FEATURE_0C_02_ANALOG_STICKS         (0x02U)
@@ -19,36 +108,38 @@
 
 #define FEATURE_0C_80_MAGNETOMETER          (0x80U)
 
-// device type
-typedef enum {
-    DEVICE_TYPE_PRO2,
-    DEVICE_TYPE_JOYCON,
-} device_type_t;
+/** @} */
 
-void encode_feature_info(uint8_t flags, device_type_t type, uint8_t out[8]);
+/**
+ * @defgroup Flash Memory Simulation
+ * @{
+ */
 
-// pro2 gatt cmds & response struct
-typedef struct {
-    uint8_t cmd;
-    uint8_t subcmd;
-    uint8_t* rsp_data;
-    uint16_t rsp_len;
-} pro2_gatt_rsp_t;
-
-// pro2 gatt cmd handle
-int cmd_process(pro2_gatt_rsp_t* rsp, uint8_t* data, uint16_t len);
-
-// Memory Sim
+/**
+ * @brief flash memory simulation structure
+ */
 typedef struct {
     uint32_t start_addr;
     size_t block_len;
     const uint8_t* data;
 } mem_sim_t;
-// flash memory
-extern mem_sim_t flash_memory;
-// memory init
-void memory_init();
-// read memory block
+
+/**
+ * @brief Simulated Memory Reading Function
+ * 
+ * @param addr memory address
+ * @param read_len reading data length
+ * @param out_buffer reading data buffer
+ * @return int 0->read ok, -1->failed
+ */
 int read_memory(uint32_t addr, size_t read_len, uint8_t* out_buffer);
+
+/** @} */
+
+#ifdef __cplusplus
+}
+#endif
+
+/** @} */
 
 #endif // _PROTOCOL_H_

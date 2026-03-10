@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+// HID Report Interval(ms)
+#define HID_REPORT_INTERVAL     15
+
 // pro2 button format
 // https://github.com/ndeadly/switch2_controller_research/blob/master/hid_reports.md#button-format-3
 typedef struct {
