@@ -1,6 +1,7 @@
 #include "hid.h"
 #include "device.h"
 #include "utils.h"
+#include "uart.h"
 
 #include <string.h>
 
@@ -112,7 +113,8 @@ static void hid_task(void *arg) {
             // update report counter, wrap around 0-255
             pro2_hid_report->counter++;
 
-            // TODO Process button events from queue
+            // Process UART events (buttons and sticks)
+            dev_uart_process_events();
 
             // send hid report
             int rc = gatt_notify(state->conn_handle, hid_report_gatt_handle,

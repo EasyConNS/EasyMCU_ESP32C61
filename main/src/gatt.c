@@ -633,16 +633,23 @@ int device_gatt_svr_init(void) {
   // ble_svc_gap_init();
   // ble_svc_gatt_init();
   // ble_svc_ans_init();
+  
+  // Initialize command system
+  if (cmd_system_init() != 0) {
+      ESP_LOGE(LOG_APP, "Failed to initialize command system");
+  } else {
+      ESP_LOGI(LOG_APP, "Command system initialized");
+  }
 
   rc = ble_gatts_count_cfg(gatt_svr_svcs);
   if (rc != 0) {
-    ESP_LOGE(LOG_APP, "ble_gatts_count_cfg() failed");
+    ESP_LOGE(LOG_BLE_GATT, "ble_gatts_count_cfg() failed");
     return rc;
   }
 
   rc = ble_gatts_add_svcs(gatt_svr_svcs);
   if (rc != 0) {
-    ESP_LOGE(LOG_APP, "ble_gatts_add_svcs() failed");
+    ESP_LOGE(LOG_BLE_GATT, "ble_gatts_add_svcs() failed");
     return rc;
   }
 
