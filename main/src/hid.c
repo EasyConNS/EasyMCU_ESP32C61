@@ -10,6 +10,13 @@ pro2_hid_report_t *pro2_hid_report = NULL;
 TaskHandle_t hid_task_handle = NULL;
 uint16_t hid_report_gatt_handle = 0x000e;
 
+// double buffer manager
+hid_double_buffer_t g_hid_double_buffer = {
+    .front_buffer = NULL,
+    .back_buffer = NULL,
+    .swap_request = 0
+};
+
 // 12 bits stick data packed into 3 bytes
 static void pack_stick_data(uint8_t out[3], uint16_t x, uint16_t y) {
     // limit to 12 bits
@@ -109,16 +116,27 @@ static void hid_task(void *arg) {
             continue;
         }
 
-        if (pro2_hid_report != NULL) {
-            // update report counter, wrap around 0-255
-            pro2_hid_report->counter++;
+        if (g_hid_double_buffer.front_buffer != NULL) {
+            // Check and perform buffer swap if requested
+            if (g_hid_double_buffer.swap_request) {
+                // Atomically swap front and back buffer pointers
+                pro2_hid_report_t* temp = g_hid_double_buffer.front_buffer;
+                g_hid_double_buffer.front_buffer = g_hid_double_buffer.back_buffer;
+                g_hid_double_buffer.back_buffer = temp;
 
-            // Process UART events (buttons and sticks)
-            dev_uart_process_events();
+                // Clear swap request
+                g_hid_double_buffer.swap_request = 0;
 
-            // send hid report
+                // Update global pointer for compatibility
+                pro2_hid_report = g_hid_double_buffer.front_buffer;
+            }
+
+            // Update report counter, wrap around 0-255
+            g_hid_double_buffer.front_buffer->counter++;
+
+            // Send HID report (using front buffer)
             int rc = gatt_notify(state->conn_handle, hid_report_gatt_handle,
-                                (uint8_t*)pro2_hid_report, sizeof(pro2_hid_report_t));
+                                (uint8_t*)g_hid_double_buffer.front_buffer, sizeof(pro2_hid_report_t));
             if (rc != 0) {
                 ESP_LOGW(LOG_HID, "hid report send failed, rc: %d", rc);
             }
@@ -136,14 +154,32 @@ void hid_start_task(void) {
     }
 
     if (g_dev_controller.type == DEVICE_TYPE_PRO2) {
-        // malloc hid report memory
-        if (pro2_hid_report == NULL) {
-            pro2_hid_report = (pro2_hid_report_t*)malloc(sizeof(pro2_hid_report_t));
-            if (pro2_hid_report == NULL) {
-                ESP_LOGE(LOG_HID, "malloc hid report memory failed");
+        // allocate double buffer memory
+        if (g_hid_double_buffer.front_buffer == NULL) {
+            g_hid_double_buffer.front_buffer = (pro2_hid_report_t*)malloc(sizeof(pro2_hid_report_t));
+            g_hid_double_buffer.back_buffer = (pro2_hid_report_t*)malloc(sizeof(pro2_hid_report_t));
+            g_hid_double_buffer.swap_request = 0;
+
+            if (g_hid_double_buffer.front_buffer == NULL || g_hid_double_buffer.back_buffer == NULL) {
+                ESP_LOGE(LOG_HID, "malloc hid report double buffer memory failed");
+                // Clean up if one allocation succeeded
+                if (g_hid_double_buffer.front_buffer != NULL) {
+                    free(g_hid_double_buffer.front_buffer);
+                    g_hid_double_buffer.front_buffer = NULL;
+                }
+                if (g_hid_double_buffer.back_buffer != NULL) {
+                    free(g_hid_double_buffer.back_buffer);
+                    g_hid_double_buffer.back_buffer = NULL;
+                }
                 return;
             }
-            pro2_report_init(pro2_hid_report);
+
+            // Initialize both buffers
+            pro2_report_init(g_hid_double_buffer.front_buffer);
+            pro2_report_init(g_hid_double_buffer.back_buffer);
+
+            // Set global pointer for compatibility
+            pro2_hid_report = g_hid_double_buffer.front_buffer;
         }
 
         // create task for sending hid report
@@ -165,8 +201,18 @@ void hid_stop_task(void) {
         vTaskDelete(hid_task_handle);
         hid_task_handle = NULL;
     }
-    if (pro2_hid_report != NULL) {
-        free(pro2_hid_report);
-        pro2_hid_report = NULL;
+
+    // Free both buffers
+    if (g_hid_double_buffer.front_buffer != NULL) {
+        free(g_hid_double_buffer.front_buffer);
+        g_hid_double_buffer.front_buffer = NULL;
     }
+    if (g_hid_double_buffer.back_buffer != NULL) {
+        free(g_hid_double_buffer.back_buffer);
+        g_hid_double_buffer.back_buffer = NULL;
+    }
+
+    // Reset global pointer
+    pro2_hid_report = NULL;
+    g_hid_double_buffer.swap_request = 0;
 }

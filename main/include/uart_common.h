@@ -167,7 +167,7 @@ typedef struct {
 // UART manager structure
 typedef struct {
     QueueHandle_t event_queue;      // Queue for UART events
-    SemaphoreHandle_t report_mutex; // Mutex for HID report access
+    // SemaphoreHandle_t report_mutex; // Mutex for HID report access
     TaskHandle_t uart_task_handle;  // UART task handle
     bool initialized;               // UART initialized flag
 

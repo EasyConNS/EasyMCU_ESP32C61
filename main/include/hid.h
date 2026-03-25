@@ -118,4 +118,15 @@ void pro2_release_button(pro2_hid_report_t *report, pro2_btns btn);
 
 // TODO JoyCon Support
 
+// Double buffer management for HID reports
+// Double buffer manager structure
+typedef struct {
+    pro2_hid_report_t* front_buffer;    // Front buffer (read by HID task)
+    pro2_hid_report_t* back_buffer;     // Back buffer (updated by UART)
+    volatile uint32_t swap_request;     // Swap request flag (atomic access)
+} hid_double_buffer_t;
+
+// Global double buffer manager
+extern hid_double_buffer_t g_hid_double_buffer;
+
 #endif // _HID_H
