@@ -15,7 +15,7 @@
 // Global UART manager
 dev_uart_manager_t g_uart_manager = {
     .event_queue = NULL,
-    .report_mutex = NULL,
+    // .report_mutex = NULL,
     .uart_task_handle = NULL,
     .initialized = false,
     .current_protocol = UART_PROTOCOL_SIMPLE,
@@ -58,8 +58,8 @@ const pro2_btns button_map[] = {
 };
 const size_t BUTTON_MAP_SIZE = 16;  // 16 non-direction, non-C buttons
 
-// Process HAT direction and update direction buttons
-static void process_hat_direction_internal(uint8_t hat_value) {
+// Process HAT direction and update direction buttons in specified buffer
+static void process_hat_direction_internal_to_buffer(pro2_hid_report_t* buffer, uint8_t hat_value) {
     // Extract direction part (bit0-3)
     uint8_t direction = hat_value & 0x0F;
 
@@ -81,97 +81,89 @@ static void process_hat_direction_internal(uint8_t hat_value) {
             break;
     }
 
-    // Update direction button states
-    pro2_set_button(pro2_hid_report, Up, up_pressed);
-    pro2_set_button(pro2_hid_report, Down, down_pressed);
-    pro2_set_button(pro2_hid_report, Left, left_pressed);
-    pro2_set_button(pro2_hid_report, Right, right_pressed);
+    // Update direction button states in specified buffer
+    pro2_set_button(buffer, Up, up_pressed);
+    pro2_set_button(buffer, Down, down_pressed);
+    pro2_set_button(buffer, Left, left_pressed);
+    pro2_set_button(buffer, Right, right_pressed);
 }
 
-// Process complete EasyCon HID event
-static void process_ec_hid_event(const ec_hid_event_t* hid_event) {
+// Process EasyCon HID event to specified buffer
+static void process_ec_hid_event_to_buffer(pro2_hid_report_t* buffer, const ec_hid_event_t* hid_event) {
     // Process 16 non-direction, non-C buttons
     for (int i = 0; i < 16; i++) {
         if (i < BUTTON_MAP_SIZE) {
             pro2_btns btn = button_map[i];
             bool pressed = (hid_event->button_mask & (1 << i)) != 0;
-            pro2_set_button(pro2_hid_report, btn, pressed);
+            pro2_set_button(buffer, btn, pressed);
         }
     }
 
     // Process HAT direction
-    process_hat_direction_internal(hid_event->hat_state);
+    process_hat_direction_internal_to_buffer(buffer, hid_event->hat_state);
 
     // Process stick data
-    pro2_set_left_stick(pro2_hid_report, hid_event->left_stick_x, hid_event->left_stick_y);
-    pro2_set_right_stick(pro2_hid_report, hid_event->right_stick_x, hid_event->right_stick_y);
+    pro2_set_left_stick(buffer, hid_event->left_stick_x, hid_event->left_stick_y);
+    pro2_set_right_stick(buffer, hid_event->right_stick_x, hid_event->right_stick_y);
 }
 
-// Process Simple HID event (new protocol)
-static void process_simple_hid_event(const simple_hid_event_t* simple_hid) {
+// Process Simple HID event to specified buffer
+static void process_simple_hid_event_to_buffer(pro2_hid_report_t* buffer, const simple_hid_event_t* simple_hid) {
     // Process all 21 buttons from 3 button bytes
     // Button bytes correspond to pro2_btn_bits_t structure
     uint8_t* btn_bytes = (uint8_t*)simple_hid->button_bytes;
 
     // Byte 0: B, A, Y, X, R, ZR, Plus, RClick
-    if (btn_bytes[0] & 0x01) pro2_press_button(pro2_hid_report, B);
-    else pro2_release_button(pro2_hid_report, B);
-    if (btn_bytes[0] & 0x02) pro2_press_button(pro2_hid_report, A);
-    else pro2_release_button(pro2_hid_report, A);
-    if (btn_bytes[0] & 0x04) pro2_press_button(pro2_hid_report, Y);
-    else pro2_release_button(pro2_hid_report, Y);
-    if (btn_bytes[0] & 0x08) pro2_press_button(pro2_hid_report, X);
-    else pro2_release_button(pro2_hid_report, X);
-    if (btn_bytes[0] & 0x10) pro2_press_button(pro2_hid_report, R);
-    else pro2_release_button(pro2_hid_report, R);
-    if (btn_bytes[0] & 0x20) pro2_press_button(pro2_hid_report, ZR);
-    else pro2_release_button(pro2_hid_report, ZR);
-    if (btn_bytes[0] & 0x40) pro2_press_button(pro2_hid_report, Plus);
-    else pro2_release_button(pro2_hid_report, Plus);
-    if (btn_bytes[0] & 0x80) pro2_press_button(pro2_hid_report, RClick);
-    else pro2_release_button(pro2_hid_report, RClick);
+    if (btn_bytes[0] & 0x01) pro2_press_button(buffer, B);
+    else pro2_release_button(buffer, B);
+    if (btn_bytes[0] & 0x02) pro2_press_button(buffer, A);
+    else pro2_release_button(buffer, A);
+    if (btn_bytes[0] & 0x04) pro2_press_button(buffer, Y);
+    else pro2_release_button(buffer, Y);
+    if (btn_bytes[0] & 0x08) pro2_press_button(buffer, X);
+    else pro2_release_button(buffer, X);
+    if (btn_bytes[0] & 0x10) pro2_press_button(buffer, R);
+    else pro2_release_button(buffer, R);
+    if (btn_bytes[0] & 0x20) pro2_press_button(buffer, ZR);
+    else pro2_release_button(buffer, ZR);
+    if (btn_bytes[0] & 0x40) pro2_press_button(buffer, Plus);
+    else pro2_release_button(buffer, Plus);
+    if (btn_bytes[0] & 0x80) pro2_press_button(buffer, RClick);
+    else pro2_release_button(buffer, RClick);
 
     // Byte 1: Down, Right, Left, Up, L, ZL, Minus, LClick
-    if (btn_bytes[1] & 0x01) pro2_press_button(pro2_hid_report, Down);
-    else pro2_release_button(pro2_hid_report, Down);
-    if (btn_bytes[1] & 0x02) pro2_press_button(pro2_hid_report, Right);
-    else pro2_release_button(pro2_hid_report, Right);
-    if (btn_bytes[1] & 0x04) pro2_press_button(pro2_hid_report, Left);
-    else pro2_release_button(pro2_hid_report, Left);
-    if (btn_bytes[1] & 0x08) pro2_press_button(pro2_hid_report, Up);
-    else pro2_release_button(pro2_hid_report, Up);
-    if (btn_bytes[1] & 0x10) pro2_press_button(pro2_hid_report, L);
-    else pro2_release_button(pro2_hid_report, L);
-    if (btn_bytes[1] & 0x20) pro2_press_button(pro2_hid_report, ZL);
-    else pro2_release_button(pro2_hid_report, ZL);
-    if (btn_bytes[1] & 0x40) pro2_press_button(pro2_hid_report, Minus);
-    else pro2_release_button(pro2_hid_report, Minus);
-    if (btn_bytes[1] & 0x80) pro2_press_button(pro2_hid_report, LClick);
-    else pro2_release_button(pro2_hid_report, LClick);
+    if (btn_bytes[1] & 0x01) pro2_press_button(buffer, Down);
+    else pro2_release_button(buffer, Down);
+    if (btn_bytes[1] & 0x02) pro2_press_button(buffer, Right);
+    else pro2_release_button(buffer, Right);
+    if (btn_bytes[1] & 0x04) pro2_press_button(buffer, Left);
+    else pro2_release_button(buffer, Left);
+    if (btn_bytes[1] & 0x08) pro2_press_button(buffer, Up);
+    else pro2_release_button(buffer, Up);
+    if (btn_bytes[1] & 0x10) pro2_press_button(buffer, L);
+    else pro2_release_button(buffer, L);
+    if (btn_bytes[1] & 0x20) pro2_press_button(buffer, ZL);
+    else pro2_release_button(buffer, ZL);
+    if (btn_bytes[1] & 0x40) pro2_press_button(buffer, Minus);
+    else pro2_release_button(buffer, Minus);
+    if (btn_bytes[1] & 0x80) pro2_press_button(buffer, LClick);
+    else pro2_release_button(buffer, LClick);
 
     // Byte 2: Home, Capture, GR, GL, C, reserved(3 bits)
-    if (btn_bytes[2] & 0x01) pro2_press_button(pro2_hid_report, Home);
-    else pro2_release_button(pro2_hid_report, Home);
-    if (btn_bytes[2] & 0x02) pro2_press_button(pro2_hid_report, Capture);
-    else pro2_release_button(pro2_hid_report, Capture);
-    if (btn_bytes[2] & 0x04) pro2_press_button(pro2_hid_report, GR);
-    else pro2_release_button(pro2_hid_report, GR);
-    if (btn_bytes[2] & 0x08) pro2_press_button(pro2_hid_report, GL);
-    else pro2_release_button(pro2_hid_report, GL);
-    if (btn_bytes[2] & 0x10) pro2_press_button(pro2_hid_report, C);
-    else pro2_release_button(pro2_hid_report, C);
+    if (btn_bytes[2] & 0x01) pro2_press_button(buffer, Home);
+    else pro2_release_button(buffer, Home);
+    if (btn_bytes[2] & 0x02) pro2_press_button(buffer, Capture);
+    else pro2_release_button(buffer, Capture);
+    if (btn_bytes[2] & 0x04) pro2_press_button(buffer, GR);
+    else pro2_release_button(buffer, GR);
+    if (btn_bytes[2] & 0x08) pro2_press_button(buffer, GL);
+    else pro2_release_button(buffer, GL);
+    if (btn_bytes[2] & 0x10) pro2_press_button(buffer, C);
+    else pro2_release_button(buffer, C);
 
     // Process stick data
-    pro2_set_left_stick(pro2_hid_report, simple_hid->left_stick_x, simple_hid->left_stick_y);
-    pro2_set_right_stick(pro2_hid_report, simple_hid->right_stick_x, simple_hid->right_stick_y);
-}
-
-static uint8_t calculate_checksum(const uint8_t* data, size_t len) {
-    uint8_t sum = 0;
-    for (size_t i = 0; i < len; i++) {
-        sum ^= data[i];
-    }
-    return sum;
+    pro2_set_left_stick(buffer, simple_hid->left_stick_x, simple_hid->left_stick_y);
+    pro2_set_right_stick(buffer, simple_hid->right_stick_x, simple_hid->right_stick_y);
 }
 
 dev_uart_event_type_t dev_uart_parse_frame(const uint8_t* data, size_t len, dev_uart_event_t* event) {
@@ -314,14 +306,8 @@ int dev_uart_init(void) {
         return -1;
     }
 
-    // Create mutex for HID report access
-    g_uart_manager.report_mutex = xSemaphoreCreateMutex();
-    if (g_uart_manager.report_mutex == NULL) {
-        ESP_LOGE(LOG_UART, "Failed to create mutex");
-        vQueueDelete(g_uart_manager.event_queue);
-        g_uart_manager.event_queue = NULL;
-        return -1;
-    }
+    // Note: Mutex for HID report access is no longer needed with double buffering
+    // The g_uart_manager.report_mutex field is kept for compatibility but not used
 
     // Configure UART parameters
     uart_config_t uart_config = {
@@ -378,10 +364,7 @@ error:
         vQueueDelete(g_uart_manager.event_queue);
         g_uart_manager.event_queue = NULL;
     }
-    if (g_uart_manager.report_mutex != NULL) {
-        vSemaphoreDelete(g_uart_manager.report_mutex);
-        g_uart_manager.report_mutex = NULL;
-    }
+    // Note: report_mutex is no longer used with double buffering
     return -1;
 }
 
@@ -423,10 +406,7 @@ void dev_uart_deinit(void) {
         g_uart_manager.event_queue = NULL;
     }
 
-    if (g_uart_manager.report_mutex != NULL) {
-        vSemaphoreDelete(g_uart_manager.report_mutex);
-        g_uart_manager.report_mutex = NULL;
-    }
+    // Note: report_mutex is no longer used with double buffering
 
     // Uninstall UART driver
     uart_driver_delete(UART_PORT_NUM);
@@ -449,53 +429,59 @@ void dev_uart_process_events(void) {
     }
 
     dev_uart_event_t event;
+    bool events_processed = false;
+
     while (dev_uart_get_event(&event)) {
-        // Update HID report with mutex protection
-        if (xSemaphoreTake(g_uart_manager.report_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-            if (pro2_hid_report != NULL) {
-                // Process event based on type
-                switch (event.type) {
-                    case UART_EVENT_EC_HID:
-                        process_ec_hid_event(&event.data.ec_hid);
-                        ESP_LOGD(LOG_UART, "Processed HID event: buttons=0x%04X, hat=0x%02X",
-                                 event.data.ec_hid.button_mask, event.data.ec_hid.hat_state);
-                        break;
+        events_processed = true;
 
-                    case UART_EVENT_SIMPLE_HID:
-                        process_simple_hid_event(&event.data.simple_hid);
-                        ESP_LOGD(LOG_UART, "Processed full HID event: buttons=0x%02X%02X%02X",
-                                 event.data.simple_hid.button_bytes[0],
-                                 event.data.simple_hid.button_bytes[1],
-                                 event.data.simple_hid.button_bytes[2]);
-                        break;
+        // Directly update back buffer, no mutex needed
+        if (g_hid_double_buffer.back_buffer != NULL) {
+            // Process event based on type
+            switch (event.type) {
+                case UART_EVENT_EC_HID:
+                    process_ec_hid_event_to_buffer(g_hid_double_buffer.back_buffer, &event.data.ec_hid);
+                    ESP_LOGD(LOG_UART, "Processed HID event to back buffer: buttons=0x%04X, hat=0x%02X",
+                             event.data.ec_hid.button_mask, event.data.ec_hid.hat_state);
+                    break;
 
-                    case UART_EVENT_SIMPLE_MANAGEMENT:
-                        // Handle management commands
-                        ESP_LOGD(LOG_UART, "Management event: command=0x%02X",
-                                 event.data.management.command);
-                        // TODO: Implement management command handling
-                        // (handshake, heartbeat, reboot, etc.)
-                        break;
+                case UART_EVENT_SIMPLE_HID:
+                    process_simple_hid_event_to_buffer(g_hid_double_buffer.back_buffer, &event.data.simple_hid);
+                    ESP_LOGD(LOG_UART, "Processed full HID event to back buffer: buttons=0x%02X%02X%02X",
+                             event.data.simple_hid.button_bytes[0],
+                             event.data.simple_hid.button_bytes[1],
+                             event.data.simple_hid.button_bytes[2]);
+                    break;
 
-                    case UART_EVENT_SIMPLE_SENSOR:
-                        // Handle sensor data
-                        ESP_LOGD(LOG_UART, "Sensor event: type=0x%02X, data=0x%02X%02X%02X%02X",
-                                 event.data.sensor.sensor_type,
-                                 event.data.sensor.sensor_data[0],
-                                 event.data.sensor.sensor_data[1],
-                                 event.data.sensor.sensor_data[2],
-                                 event.data.sensor.sensor_data[3]);
-                        // TODO: Process sensor data as needed
-                        break;
+                case UART_EVENT_SIMPLE_MANAGEMENT:
+                    // Handle management commands
+                    ESP_LOGD(LOG_UART, "Management event: command=0x%02X",
+                             event.data.management.command);
+                    // TODO: Implement management command handling
+                    // (handshake, heartbeat, reboot, etc.)
+                    break;
 
-                    case UART_EVENT_UNKNOWN:
-                    default:
-                        ESP_LOGD(LOG_UART, "Unknown event type: %d", event.type);
-                        break;
-                }
+                case UART_EVENT_SIMPLE_SENSOR:
+                    // Handle sensor data
+                    ESP_LOGD(LOG_UART, "Sensor event: type=0x%02X, data=0x%02X%02X%02X%02X",
+                             event.data.sensor.sensor_type,
+                             event.data.sensor.sensor_data[0],
+                             event.data.sensor.sensor_data[1],
+                             event.data.sensor.sensor_data[2],
+                             event.data.sensor.sensor_data[3]);
+                    // TODO: Process sensor data as needed
+                    break;
+
+                case UART_EVENT_UNKNOWN:
+                default:
+                    ESP_LOGD(LOG_UART, "Unknown event type: %d", event.type);
+                    break;
             }
-            xSemaphoreGive(g_uart_manager.report_mutex);
         }
+    }
+
+    // If events were processed, request buffer swap
+    if (events_processed) {
+        g_hid_double_buffer.swap_request = 1;
     }
 }
 
@@ -511,46 +497,6 @@ int dev_uart_send_data(const uint8_t* data, size_t len) {
     }
 
     return bytes_written;
-}
-
-// Function to update HID report from button event (to be called from hid_task)
-void uart_update_hid_report_from_button(uint8_t button_id, bool pressed) {
-    if (button_id >= BUTTON_MAP_SIZE) {
-        ESP_LOGW(LOG_UART, "Invalid button ID: %d", button_id);
-        return;
-    }
-
-    if (xSemaphoreTake(g_uart_manager.report_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-        if (pro2_hid_report != NULL) {
-            pro2_set_button(pro2_hid_report, button_map[button_id], pressed);
-            ESP_LOGD(LOG_UART, "Updated button %d (%s) to %s",
-                     button_id,
-                     button_id < BUTTON_MAP_SIZE ? "valid" : "invalid",
-                     pressed ? "pressed" : "released");
-        }
-        xSemaphoreGive(g_uart_manager.report_mutex);
-    }
-}
-
-// Function to update HID report from stick event (to be called from hid_task)
-void uart_update_hid_report_from_stick(uint8_t stick_id, uint16_t x, uint16_t y) {
-    if (stick_id >= 2) {
-        ESP_LOGW(LOG_UART, "Invalid stick ID: %d", stick_id);
-        return;
-    }
-
-    if (xSemaphoreTake(g_uart_manager.report_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
-        if (pro2_hid_report != NULL) {
-            if (stick_id == 0) {
-                pro2_set_left_stick(pro2_hid_report, x, y);
-                ESP_LOGD(LOG_UART, "Updated left stick: x=0x%03X, y=0x%03X", x, y);
-            } else {
-                pro2_set_right_stick(pro2_hid_report, x, y);
-                ESP_LOGD(LOG_UART, "Updated right stick: x=0x%03X, y=0x%03X", x, y);
-            }
-        }
-        xSemaphoreGive(g_uart_manager.report_mutex);
-    }
 }
 
 // Protocol management functions
