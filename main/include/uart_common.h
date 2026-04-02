@@ -40,6 +40,11 @@ typedef struct {
     uint8_t command;            // Command code
 } simple_management_event_t;
 
+typedef struct {
+    uint8_t code;
+    uint8_t data;
+} ec_cmd_event_t;
+
 // EasyCon protocol event
 typedef struct {
     uint16_t button_mask;    // Button bitmask (16 bits for non-direction, non-C buttons)
@@ -56,7 +61,8 @@ typedef union {
     simple_management_event_t management;       // Management operation
     simple_hid_event_t simple_hid;              // Simple HID event
     // EasyCon Protocol
-    ec_hid_event_t ec_hid;                         // EasyCon HID Event
+    ec_cmd_event_t ec_cmd;                      // EasyCon command
+    ec_hid_event_t ec_hid;                      // EasyCon HID Event
 } dev_uart_event_data_t;
 
 // UART event types
@@ -65,6 +71,7 @@ typedef enum {
     UART_EVENT_SIMPLE_MANAGEMENT, // Management operation
     UART_EVENT_SIMPLE_HID,        // Simple HID data (buttons + sticks)
     // EasyCon
+    UART_EVENT_EC_CMD,            // EasyCon command
     UART_EVENT_EC_HID,            // EasyCon HID data (buttons + sticks)
     // Unknown
     UART_EVENT_UNKNOWN
@@ -75,6 +82,11 @@ typedef struct {
     dev_uart_event_type_t type; // Event type
     dev_uart_event_data_t data; // Event data
 } dev_uart_event_t;
+
+typedef struct {
+    uint8_t* data;
+    size_t len;
+} dev_uart_event_rsp_t;
 
 /**
  * @brief UART protocol types
@@ -94,7 +106,7 @@ typedef struct {
     size_t (*get_frame_header_size)(void);
     size_t (*get_frame_size)(const uint8_t* header, size_t len);
     dev_uart_event_type_t (*parse_frame)(const uint8_t* frame_data, size_t len, dev_uart_event_t* event);
-    int (*process_event)(hid_device_report_t* buffer, dev_uart_event_t* event);
+    int (*process_event)(hid_device_report_t* buffer, dev_uart_event_t* event, dev_uart_event_rsp_t* rsp);
     void (*set_debug)(bool enable);
 } uart_protocol_impl_t;
 

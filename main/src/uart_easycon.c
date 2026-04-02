@@ -10,6 +10,8 @@
 // Log tag
 #define LOG_EASYCON "easycon_protocol"
 
+easycon_protocol_state_t ec_state = EC_IDLE;
+
 const pro2_btns button_map[] = {
     // ID 0-7: 4 non-direction buttons in pro2_btn_bits_t byte 0
     B,      // ID 0 (enum 0)
@@ -93,15 +95,32 @@ static uint16_t ec_scale_stick_value(uint8_t easycon_value) {
 }
 
 static size_t ec_get_frame_header_size() {
+    if (ec_state == EC_IDLE) {
+        return 2;
+    }
     // no header
     return 0;
 }
 
 static size_t ec_get_frame_size(const uint8_t* header, size_t len) {
+    switch (ec_state) {
+        case EC_IDLE:
+            if (len == 2  && header[0] == EASYCON_CMD_READY && header[2] == EASYCON_CMD_READY) {
+                // handshake
+                return 3;
+            }
+            break;
+        case EC_HID:
+            // EasyCon protocol always uses 8-byte encoded frames
+            // buttons(2), hat(1), sticks(4), end(1)[|=0x80] = 8 bytes
+            return EASYCON_PROTOCOL_ENCODED_SIZE;
+        // TODO 2 or 8
+        default:
+            break;
+    }
     (void)header;   // Unused parameter
     (void)len;      // Unused parameter
-    // EasyCon protocol always uses 8-byte encoded frames
-    // buttons(2), hat(1), sticks(4), end(1)
+    
     return EASYCON_PROTOCOL_ENCODED_SIZE;
 }
 
@@ -145,43 +164,56 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
     return UART_EVENT_EC_HID;
 }
 
-static int ec_process_event(hid_device_report_t* buffer, dev_uart_event_t* event) {
+static int ec_process_event(hid_device_report_t* buffer, dev_uart_event_t* event, dev_uart_event_rsp_t* rsp) {
     const hid_device_ops_t* ops = hid_get_device_ops(g_dev_controller.type);
-    // buttons
-    uint16_t button_mask = event->data.ec_hid.button_mask;
-    for (int i = 0; i < BUTTON_MAP_SIZE; i++) {
-        pro2_btns btn = button_map[i];
-        bool pressed = (button_mask & (1 << i)) != 0;
-        ops->set_button(buffer, btn, pressed);
-    }
 
-    // hat
-    uint8_t direction = event->data.ec_hid.hat_state & 0x0F;
-    bool up_pressed = false, down_pressed = false, left_pressed = false, right_pressed = false;
-    switch (direction) {
-        case HAT_UP:           up_pressed = true; break;
-        case HAT_UP_RIGHT:     up_pressed = true; right_pressed = true; break;
-        case HAT_RIGHT:        right_pressed = true; break;
-        case HAT_DOWN_RIGHT:   down_pressed = true; right_pressed = true; break;
-        case HAT_DOWN:         down_pressed = true; break;
-        case HAT_DOWN_LEFT:    down_pressed = true; left_pressed = true; break;
-        case HAT_LEFT:         left_pressed = true; break;
-        case HAT_UP_LEFT:      up_pressed = true; left_pressed = true; break;
-        case HAT_CENTER:
+    switch (event->type) {
+        case UART_EVENT_EC_HID:
+            // buttons
+            uint16_t button_mask = event->data.ec_hid.button_mask;
+            for (int i = 0; i < BUTTON_MAP_SIZE; i++) {
+                pro2_btns btn = button_map[i];
+                bool pressed = (button_mask & (1 << i)) != 0;
+                ops->set_button(buffer, btn, pressed);
+            }
+
+            // hat
+            uint8_t direction = event->data.ec_hid.hat_state & 0x0F;
+            bool up_pressed = false, down_pressed = false, left_pressed = false, right_pressed = false;
+            switch (direction) {
+                case HAT_UP:           up_pressed = true; break;
+                case HAT_UP_RIGHT:     up_pressed = true; right_pressed = true; break;
+                case HAT_RIGHT:        right_pressed = true; break;
+                case HAT_DOWN_RIGHT:   down_pressed = true; right_pressed = true; break;
+                case HAT_DOWN:         down_pressed = true; break;
+                case HAT_DOWN_LEFT:    down_pressed = true; left_pressed = true; break;
+                case HAT_LEFT:         left_pressed = true; break;
+                case HAT_UP_LEFT:      up_pressed = true; left_pressed = true; break;
+                case HAT_CENTER:
+                default:
+                    // All directions released
+                    break;
+            }
+            ops->set_button(buffer, Up, up_pressed);
+            ops->set_button(buffer, Down, down_pressed);
+            ops->set_button(buffer, Left, left_pressed);
+            ops->set_button(buffer, Right, right_pressed);
+
+            // stick
+            ops->set_left_stick(buffer, event->data.ec_hid.left_stick_x, event->data.ec_hid.left_stick_y);
+            ops->set_right_stick(buffer, event->data.ec_hid.right_stick_x, event->data.ec_hid.right_stick_y);
+
+            // no uart response
+            rsp->len = 0;
+            rsp->data = NULL;
+            return 0;
+        case UART_EVENT_EC_CMD:
+            // TODO handle easycon command
+            return 0;
         default:
-            // All directions released
-            break;
+            return -1;
     }
-    ops->set_button(buffer, Up, up_pressed);
-    ops->set_button(buffer, Down, down_pressed);
-    ops->set_button(buffer, Left, left_pressed);
-    ops->set_button(buffer, Right, right_pressed);
-
-    // stick
-    ops->set_left_stick(buffer, event->data.ec_hid.left_stick_x, event->data.ec_hid.left_stick_y);
-    ops->set_right_stick(buffer, event->data.ec_hid.right_stick_x, event->data.ec_hid.right_stick_y);
-
-    return 0;
+    return -1;
 }
 
 static void ec_set_debug(bool enabled) {

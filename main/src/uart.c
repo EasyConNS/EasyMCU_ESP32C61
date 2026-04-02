@@ -225,15 +225,24 @@ void dev_uart_process_events(void) {
     }
 
     dev_uart_event_t event;
+    dev_uart_event_rsp_t rsp;
     bool events_processed = false;
 
     while (dev_uart_get_event(&event)) {
         events_processed = true;
         if (event.type != UART_EVENT_UNKNOWN) {
-            int rc = g_uart_manager.protocol_impl->process_event(
-                g_hid_double_buffer.back_buffer, &event);
+            // TODO add response to event
+            int rc = 0;
+            rc = g_uart_manager.protocol_impl->process_event(
+                g_hid_double_buffer.back_buffer, &event, &rsp);
             if (rc != 0) {
                 ESP_LOGE(LOG_UART, "Failed to process event: %d", event.type);
+            } else if (rsp.len > 0) {
+                rc = dev_uart_send_data(rsp.data, rsp.len);
+                if (rc != 0) {
+                    ESP_LOGE(LOG_UART, "Failed to send response: %d", event.type);
+                }
+                rsp.len = 0;    // Clear response buffer
             }
         }
     }

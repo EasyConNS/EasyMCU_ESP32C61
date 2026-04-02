@@ -148,12 +148,16 @@ static int simple_process_management_event(simple_management_event_t* simple_man
     return 0;
 }
 
-static int simple_process_event(hid_device_report_t* buffer, dev_uart_event_t* event) {
+static int simple_process_event(hid_device_report_t* buffer, dev_uart_event_t* event, dev_uart_event_rsp_t* rsp) {
     switch (event->type) {
         case UART_EVENT_SIMPLE_HID: {
+            // no uart response
+            rsp->len = 0;
+            rsp->data = NULL;
             return simple_process_hid_event(buffer, &event->data.simple_hid);
         }
         case UART_EVENT_SIMPLE_MANAGEMENT: {
+            // TODO simple command response
             return simple_process_management_event(&event->data.management);
         }
         default: {
