@@ -7,6 +7,36 @@
 extern "C" {
 #endif
 
+// EasyCon command code
+#define EASYCON_CMD_READY               0xA5
+#define EASYCON_CMD_DEBUG               0x80
+#define EASYCON_CMD_HELLO               0x81
+#define EASYCON_CMD_FLASH               0x82
+#define EASYCON_CMD_SCRIPT_START        0x83
+#define EASYCON_CMD_SCRIPT_STOP         0x84
+#define EASYCON_CMD_VERSION             0x85
+#define EASYCON_CMD_LED                 0x86
+#define EASYCON_CMD_UNPAIR              0x87
+#define EASYCON_CMD_CHANGE_CONTROLLER_MODE      0x88
+#define EASYCON_CMD_CHANGE_CONTROLLER_COLOR     0x89
+#define EASYCON_CMD_SAVE_AMIIBO                 0x90
+#define EASYCON_CMD_CHANGE_AMIIBO_INDEX         0x91
+
+// EasyCon command response code
+#define EASYCON_RPY_ERROR               0x0
+#define EASYCON_RPY_BUSY                0xFE
+#define EASYCON_RPY_ASK                 0xFF
+#define EASYCON_RPY_HELLO               0x80
+#define EASYCON_RPY_FLASH_START         0x81
+#define EASYCON_RPY_FLASH_END           0x82
+#define EASYCON_RPY_SCRIPT_ACK          0x83
+
+// EasyCon NS2 frame header
+#define EASYCON_NS2_HEADER_HID          0xCC
+#define EASYCON_NS2_HEADER_CMD          0xBB
+// 0xCC 7bytes hid
+// 0xCC CMD_READY CMD
+
 // EasyCon protocol constants
 #define EASYCON_PROTOCOL_ENCODED_SIZE   8   // Encoded frame size (7-bit packed)
 #define EASYCON_PROTOCOL_RAW_SIZE       7   // Raw data size before encoding
@@ -22,6 +52,15 @@ extern "C" {
 #define HAT_DOWN_LEFT     0x05
 #define HAT_LEFT          0x06
 #define HAT_UP_LEFT       0x07
+
+typedef enum {
+  EC_IDLE,
+  EC_HANDSHAKE,
+  EC_HID,
+  EC_ERROR
+} easycon_protocol_state_t;
+
+extern easycon_protocol_state_t ec_state;
 
 // EasyCon protocol implementation
 extern const uart_protocol_impl_t easycon_protocol_impl;
