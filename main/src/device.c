@@ -192,7 +192,6 @@ void ble_advertise() {
   ext_adv_params.channel_map = BLE_GAP_ADV_DFLT_CHANNEL_MAP;
   ext_adv_params.sid = 0;
   // ext_adv_params.tx_power = 127;
-  // TODO need test
   ext_adv_params.scan_req_notif = false;
   ext_adv_params.filter_policy = BLE_HCI_SCAN_FILT_NO_WL;
 
