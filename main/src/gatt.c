@@ -40,7 +40,7 @@ static const ble_uuid128_t GATT_ALL_CHARACTERISTIC_0x0007 = BLE_UUID128_INIT(
 
 // Read 00c5af5d-1964-4e30-8f51-1956f96bd283
 static uint16_t gatt_svr_chr_0007_val_handle;
-// TODO unknown read value 可能需要随机生成后存储
+// TODO unknown read value may need to generate(random) and store
 static uint8_t gatt_svr_chr_0007_val[] = { 0x36, 0x80, 0x74, 0xee, 0xbb, 0x3d, 0x8e, 0x13 };
 
 // Primary Service 0x0008-0x0032 UUID ab7de9be-89fe-49ad-828f-118f09df7fd0

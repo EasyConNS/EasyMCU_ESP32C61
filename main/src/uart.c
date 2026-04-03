@@ -231,7 +231,6 @@ void dev_uart_process_events(void) {
     while (dev_uart_get_event(&event)) {
         events_processed = true;
         if (event.type != UART_EVENT_UNKNOWN) {
-            // TODO add response to event
             int rc = 0;
             rc = g_uart_manager.protocol_impl->process_event(
                 g_hid_double_buffer.back_buffer, &event, &rsp);
