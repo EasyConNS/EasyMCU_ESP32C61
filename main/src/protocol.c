@@ -1,6 +1,7 @@
 #include "device.h"
 #include "pro2.h"
 #include "protocol.h"
+#include "hid_pro2.h"
 #include "utils.h"
 
 #include "host/ble_att.h"
@@ -318,24 +319,25 @@ static uint8_t cmd_0x0c_handler(const uint8_t subcmd, const uint16_t payload_len
     return 0x00;
 }
 
-
-static const uint8_t firmware_info[] = {
-    // 02 => Pro2
-    // 01 00 0e 02 0c 00 00 00 ff ff ff ff
-    0x01, 0x00, 0x0e, 0x02, 0x0c, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
-};
-static const uint8_t firmware_len = sizeof(firmware_info);
-
 /**
  * @brief Firmware Info cmd handler
  */
 static uint8_t cmd_0x10_handler(const uint8_t subcmd, const uint16_t payload_len,
     const uint8_t* data_in, uint8_t* data_out) {
     switch(subcmd) {
+        // https://github.com/ndeadly/switch2_controller_research/blob/master/commands.md#command-0x10---firmware-info
+        // major minor micro(firmware version) | type(JC-L0x00 JC-R0x01 Pro20x02) | mmm(bluetooth patch version) | padding | mmm(DSP firmware version) | padding
+        // 01 00 0e 02 0c 00 00 00 ff ff ff ff
         case 0x01:
-            // 01 00 0e 02 0c 00 00 00 ff ff ff ff
-            memcpy(data_out, firmware_info, firmware_len);
-            return firmware_len;
+            if (g_dev_controller.type == DEVICE_TYPE_PRO2) {
+                memcpy(data_out, pro2_firmware_info, PRO2_FIRMWARE_INFO_SIZE);
+                return PRO2_FIRMWARE_INFO_SIZE;
+            } else if (g_dev_controller.type == DEVICE_TYPE_JOYCON) {
+                // TODO Joycon firmware info
+            }
+            // default pro2
+            memcpy(data_out, pro2_firmware_info, PRO2_FIRMWARE_INFO_SIZE);
+            return PRO2_FIRMWARE_INFO_SIZE;
         default:
             break;
     }
