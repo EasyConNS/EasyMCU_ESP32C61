@@ -91,6 +91,9 @@ static_assert(sizeof(pro2_hid_report_t) == 63);
 
 extern hid_device_ops_t pro2_hid_ops;
 
+#define PRO2_FIRMWARE_INFO_SIZE 12
+extern const uint8_t pro2_firmware_info[12];
+
 #ifdef __cplusplus
 }
 #endif

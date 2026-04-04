@@ -3,6 +3,10 @@
 
 #include "esp_log.h"
 
+const uint8_t pro2_firmware_info[12] = {
+  0x01, 0x00, 0x0e, 0x02, 0x0c, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff
+};
+
 static void pro2_set_button(hid_device_report_t *report, uint16_t btn_id, bool pressed) {
   if (report == NULL) return;
   pro2_hid_report_t *pro2_report = (pro2_hid_report_t *)report->report;
