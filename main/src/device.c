@@ -49,8 +49,15 @@ static esp_err_t device_info_init() {
     ret = nvs_open(NVS_NAME_PAIRING, NVS_READWRITE, &nvs_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(LOG_BLE_NVS, "Failed to open NVS namespace: %s", NVS_NAME_PAIRING);
+        return ret;
+    }
+
+    if (g_dev_controller.type == DEVICE_TYPE_PRO2) {
+      ret = pro2_device_init(nvs_handle);
+      if (ret != ESP_OK) {
         nvs_close(nvs_handle);
         return ret;
+      }
     }
 
     ret = ns2_addr_init(nvs_handle);
@@ -58,16 +65,6 @@ static esp_err_t device_info_init() {
         g_dev_ns2.ble_addr.type = BLE_ADDR_PUBLIC;
         // set ns2 address to manufacturer data (little endian)
         memcpy(&g_dev_controller.manufacturer_data[12], g_dev_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
-    } else {
-        nvs_close(nvs_handle);
-        return ret;
-    }
-
-    if (g_dev_controller.type == DEVICE_TYPE_PRO2) {
-      ret = pro2_device_init(nvs_handle);
-      if (ret != ESP_OK) {
-        return ret;
-      }
     }
     nvs_close(nvs_handle);
     return ret;
@@ -144,11 +141,11 @@ void ble_stack_init(void) {
 
     ESP_ERROR_CHECK(device_gatt_svr_init());
 
-    // Bonding Store
-    ble_store_config_init();
-    // custom ltk impl
+    // Bonding Store - set custom callbacks BEFORE calling ble_store_config_init()
+    // This is required because ble_hs_init() may trigger store operations
     ble_hs_cfg.store_read_cb = custom_store_config_read;
     ble_hs_cfg.store_write_cb = custom_store_config_write;
+    ble_store_config_init();
 
     // Nimble Start
     nimble_port_freertos_init(host_task);

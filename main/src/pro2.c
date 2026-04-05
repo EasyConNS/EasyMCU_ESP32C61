@@ -12,10 +12,11 @@ controller_device_t g_dev_controller = {
     .addr_re = { 0 },
     .ltk = { 0 },
     .ltk_re = { 0 },
-    .ltk_key_b1 = { 
+    .ltk_key_b1 = {
         0x5C, 0xF6, 0xEE, 0x79, 0x2C, 0xDF, 0x05, 0xE1,
-        0xBA, 0x2B, 0x63, 0x25, 0xC4, 0x1A, 0x5F, 0x10 
+        0xBA, 0x2B, 0x63, 0x25, 0xC4, 0x1A, 0x5F, 0x10
     },
+    .type = DEVICE_TYPE_PRO2,
     .manufacturer_data = {
         0x53, 0x05,                                 // Manufacturer ID, Nintendo
         0x01, 0x00, 0x03,                           // fixed, Maybe Version
@@ -67,20 +68,20 @@ static esp_err_t pro2_ltk_init(nvs_handle_t nvs_handle) {
 }
 
 int pro2_device_init(nvs_handle_t nvs_handle) {
-    esp_err_t ret; 
+    esp_err_t ret;
+    esp_err_t ltk_ret;
     ret = pro2_addr_init(nvs_handle);
     if (ret == ESP_OK) {
         // set esp ble stack mac addr, public address
         ret = esp_iface_mac_addr_set(g_dev_controller.addr, ESP_MAC_BT);
         if (ret != ESP_OK) {
             ESP_LOGE(LOG_APP, "Failed to set Pro2 addr %d", ret);
-            nvs_close(nvs_handle);
             return ret;
         }
     }
 
-    ret = pro2_ltk_init(nvs_handle);
-    if (ret == ESP_OK) {
+    ltk_ret = pro2_ltk_init(nvs_handle);
+    if (ltk_ret == ESP_OK) {
         ESP_LOGI(LOG_APP, "device already paired.");
         log_print_ltk_hex("LTK", g_dev_controller.ltk);
     }
