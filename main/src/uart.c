@@ -24,11 +24,15 @@ dev_uart_manager_t g_uart_manager = {
 // UART event processing task - processes events from queue and updates back buffer
 static void uart_event_process_task(void *arg) {
     while (1) {
-        // Process all events in queue
-        dev_uart_process_events();
+        // Process a batch of events (max 4) to improve throughput
+        // 4 events per 2ms tick = 2000 events/sec, well above 120fps needs
+        for (int i = 0; i < 4; i++) {
+            dev_uart_process_events();
+        }
 
-        // Sleep 1ms when queue is empty to reduce CPU usage while maintaining responsiveness
-        vTaskDelay(pdMS_TO_TICKS(1));
+        // Delay 2 ticks to ensure IDLE task gets CPU time
+        // Direct tick count avoids pdMS_TO_TICKS rounding to 0
+        vTaskDelay(2);
     }
 }
 
@@ -197,7 +201,9 @@ int dev_uart_start_task(void) {
 
     // Create UART event processing task if not already running
     if (g_uart_manager.uart_evt_task_handle == NULL) {
-        BaseType_t rc = xTaskCreate(uart_event_process_task, "uart_evt", 4096, NULL, 5, &g_uart_manager.uart_evt_task_handle);
+        // Priority 2: lower than uart_rx (4) to prevent blocking IDLE task (0)
+        // Allows 1ms delay while meeting 120fps (8.3ms/frame) timing requirements
+        BaseType_t rc = xTaskCreate(uart_event_process_task, "uart_evt", 4096, NULL, 2, &g_uart_manager.uart_evt_task_handle);
         if (rc != pdPASS) {
             ESP_LOGE(LOG_UART, "Failed to create UART event task: %d", rc);
             return -1;
@@ -256,6 +262,12 @@ void dev_uart_process_events(void) {
 
     dev_uart_event_t event;
     dev_uart_event_rsp_t rsp;
+
+    // Check protocol implementation is available
+    if (g_uart_manager.protocol_impl == NULL) {
+        ESP_LOGW(LOG_UART, "Protocol not set, dropping event");
+        return;
+    }
 
     // Process only one event per call to prevent multiple HID events
     // from overwriting the back_buffer within a single task tick.

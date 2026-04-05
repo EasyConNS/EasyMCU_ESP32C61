@@ -523,12 +523,16 @@ int cmd_handler_register(uint8_t cmd, cmd_handler handler) {
     if (handler == NULL) return -1;
     g_cmd_handler_entry_t* cur = NULL;
     HASH_FIND(hh, g_cmd_handlers, &cmd, sizeof(uint8_t), cur);
-    if (cur == NULL) {
-        return -1;
+    if (cur != NULL) {
+        ESP_LOGW(LOG_APP, "cmd handler already registered, cmd: 0x%02x", cmd);
+        ESP_LOGW(LOG_APP, "will overwrite the handler");
+        cur->handler = handler;
+        return 0;
     }
 
     cur = (g_cmd_handler_entry_t*)malloc(sizeof(g_cmd_handler_entry_t));
     if (cur == NULL) {
+        ESP_LOGE(LOG_APP, "Failed to allocate memory for cmd handler entry, cmd: 0x%02x", cmd);
         return -1;
     }
 
