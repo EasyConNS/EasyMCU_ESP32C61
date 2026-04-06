@@ -24,4 +24,16 @@ menu "NSController Configuration"
         default 0 if UART_PROTOCOL_SIMPLE
         default 1 if UART_PROTOCOL_EASYCON
 
+    config UART_RX_PIN
+        int "UART RX Pin (GPIO)"
+        default 4
+        help
+            GPIO number for UART RX pin. Default is GPIO4.
+
+    config UART_TX_PIN
+        int "UART TX Pin (GPIO)"
+        default 5
+        help
+            GPIO number for UART TX pin. Default is GPIO5.
+
 endmenu

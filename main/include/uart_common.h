@@ -21,8 +21,8 @@ extern "C" {
 #define UART_BAUD_RATE          115200
 #define UART_RX_BUFFER_SIZE     1024
 #define UART_TX_BUFFER_SIZE     1024
-#define UART_RX_PIN             4   // GPIO4 for RX
-#define UART_TX_PIN             5   // GPIO5 for TX
+#define UART_RX_PIN             CONFIG_UART_RX_PIN
+#define UART_TX_PIN             CONFIG_UART_TX_PIN
 #define UART_MAX_FRAME_SIZE     32   // Maximum frame size for all protocols
 
 
