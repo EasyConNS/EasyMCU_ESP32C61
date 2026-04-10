@@ -9,6 +9,10 @@
 
 void app_main(void)
 {
+    esp_log_level_set("*", ESP_LOG_WARN);
+    #ifdef CONFIG_MCU_DEBUG
+        esp_log_level_set(LOG_APP, ESP_LOG_DEBUG);
+    #endif
     ESP_LOGI(LOG_APP, "Nintendo Switch Controller Emulator");
     ESP_LOGI(LOG_APP, "Starting initialization...");
 
