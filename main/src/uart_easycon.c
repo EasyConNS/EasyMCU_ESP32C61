@@ -19,49 +19,48 @@ static uint8_t ack_rsp[] = { EASYCON_RPY_ACK };
 static uint8_t led_rsp[] = { 0x00 };
 
 const pro2_btns button_map[] = {
-    // ID 0-7: 4 non-direction buttons in pro2_btn_bits_t byte 0
-    B,      // ID 0 (enum 0)
-    A,      // ID 1 (enum 1)
-    Y,      // ID 2 (enum 2)
-    X,      // ID 3 (enum 3)
-    R,      // ID 4 (enum 4)
-    ZR,     // ID 5 (enum 5)
-    Plus,   // ID 6 (enum 6)
-    RClick, // ID 7 (enum 7)
+    // Map EasyCon button bits (0-13) to pro2_btns enum values
+    // EasyCon bit 0-7 are in button_mask low byte, bit 8-13 in high byte
+    Y,      // ID 0: EasyCon bit 0 -> Y
+    B,      // ID 1: EasyCon bit 1 -> B
+    A,      // ID 2: EasyCon bit 2 -> A
+    X,      // ID 3: EasyCon bit 3 -> X
+    L,      // ID 4: EasyCon bit 4 -> L
+    R,      // ID 5: EasyCon bit 5 -> R
+    ZL,     // ID 6: EasyCon bit 6 -> ZL
+    ZR,     // ID 7: EasyCon bit 7 -> ZR
+    Minus,  // ID 8: EasyCon bit 8 -> Minus
+    Plus,   // ID 9: EasyCon bit 9 -> Plus
+    LClick, // ID 10: EasyCon bit 10 -> LClick
+    RClick, // ID 11: EasyCon bit 11 -> RClick
+    Home,   // ID 12: EasyCon bit 12 -> Home
+    Capture,// ID 13: EasyCon bit 13 -> Capture
 
-    // ID 8-11: 4 non-direction buttons in pro2_btn_bits_t byte 1
-    L,      // ID 8 (enum 12) - skip Down,Right,Left,Up
-    ZL,     // ID 9 (enum 13)
-    Minus,  // ID 10 (enum 14)
-    LClick, // ID 11 (enum 15)
-
-    // ID 12-15: 4 buttons in pro2_btn_bits_t byte 2 (excluding C)
-    Home,   // ID 12 (enum 16)
-    Capture,// ID 13 (enum 17)
-    GR,     // ID 14 (enum 18)
-    GL,     // ID 15 (enum 19)
-
-    // Note: Direction buttons (Down,Right,Left,Up) and C button are not in button_map
-    // They are handled separately
+    // Note: EasyCon does not have GR/GL buttons
+    // Direction buttons (Down,Right,Left,Up) are handled separately via hat_state
 };
-const size_t BUTTON_MAP_SIZE = 16; // 16 non-direction, non-C buttons
+const size_t BUTTON_MAP_SIZE = 14; // 14 buttons defined in EasyCon protocol (bit 0-13)
 
 // 7-bit packed decoding implementation
+// Matches C# encoder: data added to low bits, extracted from high bits
 static void ec_decode_7bit_packed(const uint8_t* encoded, uint8_t* decoded, size_t decoded_len) {
     uint32_t buffer = 0;
     int bits_available = 0;
-    int decoded_idx = 0;
+    int encoded_idx = 0;
 
-    for (int i = 0; i < 8; i++) {
-        uint8_t byte = encoded[i];
-        buffer |= ((uint32_t)byte) << bits_available;
-        bits_available += 7;
-
-        while (bits_available >= 8 && decoded_idx < decoded_len) {
-            decoded[decoded_idx++] = buffer & 0xFF;
-            buffer >>= 8;
-            bits_available -= 8;
+    for (int i = 0; i < decoded_len; i++) {
+        // Ensure we have at least 8 bits in buffer
+        while (bits_available < 8) {
+            uint8_t byte = encoded[encoded_idx++];
+            // Add new 7-bit data to low bits (matching encoder's bit order)
+            buffer = (buffer << 7) | (byte & 0x7F);
+            bits_available += 7;
         }
+        // Extract 8 bits from high bits of buffer
+        bits_available -= 8;
+        decoded[i] = (buffer >> bits_available) & 0xFF;
+        // Clear used bits
+        buffer &= (1U << bits_available) - 1;
     }
 }
 
@@ -101,6 +100,9 @@ static uint16_t ec_scale_stick_value(uint8_t easycon_value) {
 }
 
 static int ec_init() {
+    #ifdef CONFIG_MCU_DEBUG
+        esp_log_level_set(LOG_EASYCON, ESP_LOG_DEBUG);
+    #endif
     return 0;
 }
 
@@ -145,7 +147,9 @@ static size_t ec_get_frame_size(const uint8_t* header, size_t len) {
 }
 
 static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t len, dev_uart_event_t* event) {
+    ESP_LOGD(LOG_EASYCON, "ec_parse_frame: len=%d", len);
     if (ec_current_slice_event.code != 0) {
+        ESP_LOGD(LOG_EASYCON, "ec_parse_frame: slice event");
         event->type = UART_EVENT_EC_CMD_SLICE_DATA;
         event->data.ec_cmd_slice_data.cmd.code = ec_current_slice_event.code;
         event->data.ec_cmd_slice_data.cmd.index = ec_current_slice_event.index;
@@ -164,7 +168,8 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
         return UART_EVENT_EC_CMD_SLICE_DATA;
     }
 
-    if (len == EASYCON_PROTOCOL_HELLO_SIZE || EASYCON_PROTOCOL_SIMPLE_CMD_SIZE) {
+    if (len == EASYCON_PROTOCOL_HELLO_SIZE || len == EASYCON_PROTOCOL_SIMPLE_CMD_SIZE) {
+        ESP_LOGD(LOG_EASYCON, "ec_parse_frame: hello or simple cmd");
         event->type = UART_EVENT_EC_CMD;
         if (frame_data[2] == EASYCON_CMD_HELLO) {
             // hello
@@ -189,6 +194,7 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
     }
 
     if (len == EASYCON_PROTOCOL_SHORT_CMD_SIZE) {
+        ESP_LOGD(LOG_EASYCON, "ec_parse_frame: short cmd");
         event->type = UART_EVENT_EC_CMD;
         event->data.ec_cmd.code = frame_data[1];
         event->data.ec_cmd.data = 0;
@@ -196,6 +202,7 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
     }
 
     if (len == EASYCON_PROTOCOL_SLICE_CMD_SIZE) {
+        ESP_LOGD(LOG_EASYCON, "ec_parse_frame: slice cmd");
         // flash color amiibo
         event->data.ec_cmd_slice.index = (frame_data[1] & 0x7F) | frame_data[2];
         event->data.ec_cmd_slice.len = (frame_data[3] & 0x7F) | frame_data[4];
@@ -215,10 +222,13 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
         return UART_EVENT_EC_CMD_SLICE;
     }
 
-    if (len < EASYCON_PROTOCOL_ENCODED_SIZE 
-        || (frame_data[len - 1] & EASYCON_PROTOCOL_END_MARKER) != 0) {
+    if (len < EASYCON_PROTOCOL_ENCODED_SIZE
+        || (frame_data[len - 1] & EASYCON_PROTOCOL_END_MARKER) == 0) {
+        ESP_LOGE(LOG_EASYCON, "Invalid frame size or end marker: len=%d, end_marker=0x%02X",
+            len, frame_data[len - 1] & EASYCON_PROTOCOL_END_MARKER);
         return UART_EVENT_UNKNOWN;
     }
+    ESP_LOGD(LOG_EASYCON, "ec_parse_frame: HID");
 
     uint8_t raw_data[EASYCON_PROTOCOL_RAW_SIZE];
     ec_decode_7bit_packed(frame_data, raw_data, EASYCON_PROTOCOL_RAW_SIZE);
@@ -232,13 +242,16 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
     uint8_t rx_raw = raw_data[5];        // Right stick X
     uint8_t ry_raw = raw_data[6];        // Right stick Y
 
-    // Combine button bytes (little-endian: byte0 in lower bits, byte1 in higher bits)
-    uint16_t button_mask = button_byte0 | ((uint16_t)button_byte1 << 8);
+    // Combine button bytes (big-endian from PC: byte0 in higher bits, byte1 in lower bits)
+    uint16_t button_mask = ((uint16_t)button_byte0 << 8) | button_byte1;
     // Scale stick values
+    // Note: Y-axis is inverted between EasyCon (0=up, 255=down) and HID (0=up, 4095=down)
+    // But user reports direction is reversed, so EasyCon may use (0=down, 255=up)
+    // Invert Y values: 255 - raw_value
     uint16_t left_stick_x = ec_scale_stick_value(lx_raw);
-    uint16_t left_stick_y = ec_scale_stick_value(ly_raw);
+    uint16_t left_stick_y = ec_scale_stick_value(255 - ly_raw);
     uint16_t right_stick_x = ec_scale_stick_value(rx_raw);
-    uint16_t right_stick_y = ec_scale_stick_value(ry_raw);
+    uint16_t right_stick_y = ec_scale_stick_value(255 - ry_raw);
 
     event->type = UART_EVENT_EC_HID;
     event->data.ec_hid.button_mask = button_mask;
@@ -250,6 +263,7 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
 
     ESP_LOGD(LOG_EASYCON, "HID event: buttons=0x%04X, hat=0x%02X, LX=0x%03X, LY=0x%03X, RX=0x%03X, RY=0x%03X",
              button_mask, hat_state, left_stick_x, left_stick_y, right_stick_x, right_stick_y);
+    
 
     return UART_EVENT_EC_HID;
 }
@@ -292,6 +306,35 @@ static int ec_process_event(hid_device_report_t* buffer, dev_uart_event_t* event
             // stick
             ops->set_left_stick(buffer, event->data.ec_hid.left_stick_x, event->data.ec_hid.left_stick_y);
             ops->set_right_stick(buffer, event->data.ec_hid.right_stick_x, event->data.ec_hid.right_stick_y);
+
+            // Print pressed buttons only
+            {
+                uint16_t mask = event->data.ec_hid.button_mask;
+                uint8_t hat = event->data.ec_hid.hat_state;
+                char pressed[128] = "";
+                int pos = 0;
+
+                const char* btn_names[] = {"Y", "B", "A", "X", "L", "R", "ZL", "ZR",
+                                           "MINUS", "PLUS", "L3", "R3", "HOME", "CAPTURE"};
+                for (int i = 0; i < 14; i++) {
+                    if (mask & (1 << i)) {
+                        pos += snprintf(pressed + pos, sizeof(pressed) - pos, "%s ", btn_names[i]);
+                    }
+                }
+
+                const char* hat_str[] = {"UP", "UP_RIGHT", "RIGHT", "DOWN_RIGHT",
+                                         "DOWN", "DOWN_LEFT", "LEFT", "UP_LEFT"};
+                if (hat < 8) {
+                    pos += snprintf(pressed + pos, sizeof(pressed) - pos, "%s ", hat_str[hat]);
+                }
+
+                if (pos > 0 || hat != 8) {
+                    ESP_LOGI(LOG_EASYCON, "Pressed: %s| LS(%d,%d) RS(%d,%d)",
+                             pressed,
+                             event->data.ec_hid.left_stick_x, event->data.ec_hid.left_stick_y,
+                             event->data.ec_hid.right_stick_x, event->data.ec_hid.right_stick_y);
+                }
+            }
 
             // no uart response
             rsp->len = 0;

@@ -93,19 +93,29 @@ static void uart_rx_task(void *arg) {
                         ESP_LOGD(LOG_UART, "Frame started (no header), size: %d", frame_size);
                         // Fall through to store current byte as first data byte
                     }
-                    // Case 2: Collecting header bytes
-                    else if (header_size > 0 && frame_pos < header_size) {
+                    // Case 2: Collecting header bytes (not the last one)
+                    else if (header_size > 0 && frame_pos < header_size - 1) {
                         frame_buffer[frame_pos++] = byte;
                         ESP_LOGD(LOG_UART, "Header byte[%d]: 0x%02X", frame_pos - 1, byte);
                         continue;
                     }
+                    // Case 2b: Last header byte - store it and fall through to process header
+                    else if (header_size > 0 && frame_pos == header_size - 1) {
+                        frame_buffer[frame_pos++] = byte;
+                        ESP_LOGD(LOG_UART, "Header byte[%d]: 0x%02X", frame_pos - 1, byte);
+                        // Fall through to handle header complete below
+                    }
                     // Case 3: Header complete - determine frame size and transition to in_frame
-                    else if (header_size > 0 && frame_pos >= header_size) {
+                    if (header_size > 0 && frame_pos >= header_size && !in_frame) {
                         frame_size = current_impl->get_frame_size(frame_buffer, frame_pos);
                         if (frame_size > 0) {
                             in_frame = true;
                             ESP_LOGD(LOG_UART, "Frame started, size: %d", frame_size);
-                            // Fall through to store current byte as first data byte
+                            // If frame is larger than header, wait for data bytes.
+                            // Otherwise (frame == header), fall through to process immediately.
+                            if (frame_size > header_size) {
+                                continue;
+                            }
                         } else {
                             // Invalid header, shift and retry
                             memmove(frame_buffer, frame_buffer + 1, frame_pos - 1);
@@ -234,6 +244,11 @@ int dev_uart_start_task(void) {
         ESP_LOGE(LOG_UART, "UART not initialized");
         return -1;
     }
+
+    g_uart_manager.protocol_impl->init();
+    #ifdef CONFIG_MCU_DEBUG
+        esp_log_level_set(LOG_UART, ESP_LOG_DEBUG);
+    #endif
 
     // Create UART RX task if not already running
     if (g_uart_manager.uart_rx_task_handle == NULL) {
