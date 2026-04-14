@@ -5,7 +5,7 @@
 #include "esp_mac.h"
 #include "esp_random.h"
 
-controller_device_t g_dev_controller = {
+controller_firmware_t g_controller_firmware = {
     // 78:81:8c -> Nintendo (Area HK)
     .addr = { 0x78, 0x81, 0x8c, 0x00, 0x00, 0x00 },
     // not initialized
@@ -16,7 +16,7 @@ controller_device_t g_dev_controller = {
         0x5C, 0xF6, 0xEE, 0x79, 0x2C, 0xDF, 0x05, 0xE1,
         0xBA, 0x2B, 0x63, 0x25, 0xC4, 0x1A, 0x5F, 0x10
     },
-    .type = DEVICE_TYPE_PRO2,
+    .type = CONTROLLER_TYPE_PRO2,
     .manufacturer_data = {
         0x53, 0x05,                                 // Manufacturer ID, Nintendo
         0x01, 0x00, 0x03,                           // fixed, Maybe Version
@@ -32,14 +32,14 @@ controller_device_t g_dev_controller = {
 
 static esp_err_t pro2_addr_init(nvs_handle_t nvs_handle) {
     esp_err_t ret;
-    ret = nvs_get_blob(nvs_handle, NVS_KEY_DEVICE_ADDR, g_dev_controller.addr_re, &(size_t){ESP_BD_ADDR_LEN});
+    ret = nvs_get_blob(nvs_handle, NVS_KEY_DEVICE_ADDR, g_controller_firmware.addr_re, &(size_t){ESP_BD_ADDR_LEN});
     if (ret != ESP_OK) {
         ESP_LOGW(LOG_BLE_NVS, "Failed to get Pro2 addr from NVS, will be generated...");
-        esp_fill_random(g_dev_controller.addr + 3, 3);
+        esp_fill_random(g_controller_firmware.addr + 3, 3);
         
         // save pro2 addr to nvs
-        reverse_bytes(g_dev_controller.addr, g_dev_controller.addr_re, ESP_BD_ADDR_LEN);
-        ret = nvs_set_blob(nvs_handle, NVS_KEY_DEVICE_ADDR, g_dev_controller.addr_re, ESP_BD_ADDR_LEN);
+        reverse_bytes(g_controller_firmware.addr, g_controller_firmware.addr_re, ESP_BD_ADDR_LEN);
+        ret = nvs_set_blob(nvs_handle, NVS_KEY_DEVICE_ADDR, g_controller_firmware.addr_re, ESP_BD_ADDR_LEN);
         if (ret != ESP_OK) {
           ESP_LOGE(LOG_BLE_NVS, "Failed to save Pro2 addr to NVS");
           return ret;
@@ -51,7 +51,7 @@ static esp_err_t pro2_addr_init(nvs_handle_t nvs_handle) {
           return ret;
         }
     } else {
-        reverse_bytes(g_dev_controller.addr_re, g_dev_controller.addr, ESP_BD_ADDR_LEN);
+        reverse_bytes(g_controller_firmware.addr_re, g_controller_firmware.addr, ESP_BD_ADDR_LEN);
         ESP_LOGI(LOG_BLE_NVS, "Pro2 addr loaded from NVS");
     }
     return ESP_OK;
@@ -59,11 +59,11 @@ static esp_err_t pro2_addr_init(nvs_handle_t nvs_handle) {
 
 static esp_err_t pro2_ltk_init(nvs_handle_t nvs_handle) {
   esp_err_t ret;
-  ret = nvs_get_blob(nvs_handle, NVS_KEY_LTK, g_dev_controller.ltk, &(size_t){LTK_KEY_SIZE});
+  ret = nvs_get_blob(nvs_handle, NVS_KEY_LTK, g_controller_firmware.ltk, &(size_t){LTK_KEY_SIZE});
   if (ret != ESP_OK) {
     ESP_LOGE(LOG_BLE_NVS, "Failed to get LTK from NVS");
   } else {
-    reverse_bytes(g_dev_controller.ltk, g_dev_controller.ltk_re, LTK_KEY_SIZE);
+    reverse_bytes(g_controller_firmware.ltk, g_controller_firmware.ltk_re, LTK_KEY_SIZE);
     ESP_LOGI(LOG_BLE_NVS, "LTK loaded and reversed successfully");
   }
   return ret;
@@ -75,7 +75,7 @@ int pro2_device_init(nvs_handle_t nvs_handle) {
     ret = pro2_addr_init(nvs_handle);
     if (ret == ESP_OK) {
         // set esp ble stack mac addr, public address
-        ret = esp_iface_mac_addr_set(g_dev_controller.addr, ESP_MAC_BT);
+        ret = esp_iface_mac_addr_set(g_controller_firmware.addr, ESP_MAC_BT);
         if (ret != ESP_OK) {
             ESP_LOGE(LOG_APP, "Failed to set Pro2 addr %d", ret);
             return ret;
@@ -85,7 +85,7 @@ int pro2_device_init(nvs_handle_t nvs_handle) {
     ltk_ret = pro2_ltk_init(nvs_handle);
     if (ltk_ret == ESP_OK) {
         ESP_LOGI(LOG_APP, "device already paired.");
-        log_print_ltk_hex("LTK", g_dev_controller.ltk);
+        log_print_ltk_hex("LTK", g_controller_firmware.ltk);
     }
     return ret;
 }
@@ -100,14 +100,14 @@ static int pro2_pairing_info_nvs_save() {
     return ret;
   }
 
-  ret = nvs_set_blob(nvs_handle, NVS_KEY_LTK, g_dev_controller.ltk, LTK_KEY_SIZE);
+  ret = nvs_set_blob(nvs_handle, NVS_KEY_LTK, g_controller_firmware.ltk, LTK_KEY_SIZE);
   if (ret != ESP_OK) {
     ESP_LOGE(LOG_BLE_NVS, "Failed to save LTK to NVS");
     nvs_close(nvs_handle);
     return ret;
   }
 
-  ret = nvs_set_blob(nvs_handle, NVS_KEY_HOST_ADDR, g_dev_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
+  ret = nvs_set_blob(nvs_handle, NVS_KEY_HOST_ADDR, g_console_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
   if (ret != ESP_OK) {
     ESP_LOGE(LOG_BLE_NVS, "Failed to save NS2 addr to NVS");
     nvs_close(nvs_handle);
@@ -133,11 +133,11 @@ static void pro2_global_ltk_sec_init() {
   g_ltk_sec->bond_count = 1;
   g_ltk_sec->key_size = LTK_KEY_SIZE;
   // use little endian ltk
-  memcpy(g_ltk_sec->ltk, g_dev_controller.ltk_re, LTK_KEY_SIZE);
+  memcpy(g_ltk_sec->ltk, g_controller_firmware.ltk_re, LTK_KEY_SIZE);
   g_ltk_sec->ltk_present = 1;
   g_ltk_sec->peer_addr.type = BLE_ADDR_PUBLIC;
   // use little endian addr
-  memcpy(g_ltk_sec-> peer_addr.val, g_dev_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
+  memcpy(g_ltk_sec-> peer_addr.val, g_console_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
   // NS2 rand_num and ediv are both 0
   g_ltk_sec->rand_num = 0;
   g_ltk_sec->ediv = 0;
@@ -168,7 +168,7 @@ int pro2_inject_pairing_info_to_ble_context() {
 
   // TIP: Maybe not necessary to call this function
   // manual binding, execute initial binding logic
-  // ble_gatts_bonding_established(g_dev_ns2.conn_handle);
+  // ble_gatts_bonding_established(g_console_ns2.conn_handle);
 
   return rc;
 }

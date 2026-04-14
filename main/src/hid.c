@@ -18,11 +18,11 @@ hid_double_buffer_t g_hid_double_buffer = {
     .swap_request = 0
 };
 
-const hid_device_ops_t* hid_get_device_ops(dev_type_t type) {
+const hid_device_ops_t* hid_get_device_ops(controller_type_t type) {
     switch (type) {
-        case DEVICE_TYPE_PRO2:
+        case CONTROLLER_TYPE_PRO2:
             return &pro2_hid_ops;
-        case DEVICE_TYPE_JOYCON:
+        case CONTROLLER_TYPE_JOYCON:
             // TODO return &joycon_hid_ops;
             ESP_LOGW(LOG_HID, "JoyCon support not implemented yet");
             return NULL;
@@ -113,7 +113,7 @@ void hid_start_task(void) {
         goto error;
     }
 
-    const hid_device_ops_t *ops = hid_get_device_ops(g_dev_controller.type);
+    const hid_device_ops_t *ops = hid_get_device_ops(g_controller_firmware.type);
     ops->report_init(g_hid_double_buffer.front_buffer);
     ops->report_init(g_hid_double_buffer.back_buffer);
     

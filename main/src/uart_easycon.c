@@ -270,7 +270,7 @@ static dev_uart_event_type_t ec_parse_frame(const uint8_t* frame_data, size_t le
 }
 
 static int ec_process_event(hid_device_report_t* buffer, dev_uart_event_t* event, dev_uart_event_rsp_t* rsp) {
-    const hid_device_ops_t* ops = hid_get_device_ops(g_dev_controller.type);
+    const hid_device_ops_t* ops = hid_get_device_ops(g_controller_firmware.type);
 
     switch (event->type) {
         case UART_EVENT_EC_HID:

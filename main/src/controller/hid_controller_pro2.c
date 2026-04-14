@@ -59,7 +59,7 @@ static void pro2_set_right_stick(controller_hid_report_t *report, uint16_t x, ui
 static void pro2_report_init(controller_hid_report_t *report) {
   if (report == NULL) return;
 
-  report->type = DEVICE_TYPE_PRO2;
+  report->type = CONTROLLER_TYPE_PRO2;
   report->report = (hid_report_pro2_t *)malloc(sizeof(hid_report_pro2_t));
   if (report->report == NULL) {
     ESP_LOGE(LOG_HID, "Failed to allocate memory for pro2 controller report");

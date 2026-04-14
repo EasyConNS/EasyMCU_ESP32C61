@@ -10,7 +10,7 @@
 controller_handle_t g_controller = {
     .ops = &controller_ops,
     .hid_ops = NULL,
-    .type = NULL,
+    .type = CONTROLLER_TYPE_PRO2,       // default pro2
     .buffer = {
         .front_buffer = NULL,
         .back_buffer = NULL,
@@ -83,7 +83,7 @@ static void controller_task(void *arg) {
     }
 }
 
-static int controller_init_impl(controller_handle_t *ctrl, dev_type_t type) {
+static int controller_init_impl(controller_handle_t *ctrl, controller_type_t type) {
     if (ctrl == NULL) {
         return -1;
     }
@@ -94,7 +94,7 @@ static int controller_init_impl(controller_handle_t *ctrl, dev_type_t type) {
     }
 
     // TODO JoyCon support
-    ctrl->hid_ops = type == DEVICE_TYPE_PRO2 ? &controller_pro2_ops : NULL;
+    ctrl->hid_ops = type == CONTROLLER_TYPE_PRO2 ? &controller_pro2_ops : NULL;
     if (ctrl->hid_ops == NULL) {
         ESP_LOGE(LOG_HID, "No valid hid device operations for type %d", type);
         return -1;
