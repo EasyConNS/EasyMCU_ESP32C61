@@ -28,7 +28,7 @@ extern "C" {
 typedef struct controller_handle controller_handle_t;
 
 typedef struct {
-    dev_type_t type;
+    controller_type_t type;
     void *report;
 } controller_hid_report_t;
 
@@ -47,7 +47,7 @@ typedef struct {
 // Controller management operations
 typedef struct {
     const char *name;
-    int  (*init)(controller_handle_t *ctrl, dev_type_t type);
+    int  (*init)(controller_handle_t *ctrl, controller_type_t type);
     void (*deinit)(controller_handle_t *ctrl);
     int  (*start_task)(controller_handle_t *ctrl);
     void (*stop_task)(controller_handle_t *ctrl);
@@ -58,7 +58,7 @@ typedef struct {
 struct controller_handle {
     const controller_ops_t *ops;
     const controller_hid_ops_t *hid_ops;
-    dev_type_t type;
+    controller_type_t type;
 
     struct {
         controller_hid_report_t *front_buffer;

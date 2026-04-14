@@ -137,7 +137,7 @@ static dev_uart_event_type_t simple_parse_frame(const uint8_t* frame_data, size_
 }
 
 static int simple_process_hid_event(hid_device_report_t* buffer, simple_hid_event_t* simple_hid) {
-    const hid_device_ops_t* ops = hid_get_device_ops(g_dev_controller.type);
+    const hid_device_ops_t* ops = hid_get_device_ops(g_controller_firmware.type);
     // set button
     ops->set_button_custom(buffer, (uint8_t*)simple_hid->button_bytes, 3);
     // set stick 

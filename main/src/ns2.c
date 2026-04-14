@@ -1,6 +1,6 @@
-#include "device.h"
+#include "console.h"
 
-ns2_device_t g_dev_ns2 = {
+console_ns2_t g_console_ns2 = {
     .ble_addr = {
         .type = BLE_ADDR_PUBLIC,
         .val = { 0 }

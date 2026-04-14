@@ -15,7 +15,7 @@
 #include "host/ble_att.h"
 #include "host/util/util.h"
 
-dev_status_t g_status = DEV_BOOT;
+device_status_t g_device_status = DEV_BOOT;
 
 struct ble_store_value_sec* g_ltk_sec = NULL;
 
@@ -34,7 +34,7 @@ static void nvs_init() {
 
 static esp_err_t ns2_addr_init(nvs_handle_t nvs_handle) {
   esp_err_t ret;
-  ret = nvs_get_blob(nvs_handle, NVS_KEY_HOST_ADDR, g_dev_ns2.ble_addr.val, &(size_t){ESP_BD_ADDR_LEN});
+  ret = nvs_get_blob(nvs_handle, NVS_KEY_HOST_ADDR, g_console_ns2.ble_addr.val, &(size_t){ESP_BD_ADDR_LEN});
   if (ret != ESP_OK) {
     ESP_LOGE(LOG_BLE_NVS, "Failed to get NS2 addr from NVS");
   } else {
@@ -52,7 +52,7 @@ static esp_err_t device_info_init() {
         return ret;
     }
 
-    if (g_dev_controller.type == DEVICE_TYPE_PRO2) {
+    if (g_controller_firmware.type == CONTROLLER_TYPE_PRO2) {
       ret = pro2_device_init(nvs_handle);
       if (ret != ESP_OK) {
         nvs_close(nvs_handle);
@@ -62,9 +62,9 @@ static esp_err_t device_info_init() {
 
     ret = ns2_addr_init(nvs_handle);
     if (ret == ESP_OK) {
-        g_dev_ns2.ble_addr.type = BLE_ADDR_PUBLIC;
+        g_console_ns2.ble_addr.type = BLE_ADDR_PUBLIC;
         // set ns2 address to manufacturer data (little endian)
-        memcpy(&g_dev_controller.manufacturer_data[12], g_dev_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
+        memcpy(&g_controller_firmware.manufacturer_data[12], g_console_ns2.ble_addr.val, ESP_BD_ADDR_LEN);
     }
     nvs_close(nvs_handle);
     return ret;
@@ -81,10 +81,10 @@ static uint8_t own_addr_type;
 static void bleprph_on_sync(void) {
   ESP_ERROR_CHECK(ble_hs_util_ensure_addr(0));
   ESP_ERROR_CHECK(ble_hs_id_infer_auto(0, &own_addr_type));
-  log_print_addr(g_dev_controller.addr_re);
+  log_print_addr(g_controller_firmware.addr_re);
 
   // already paired, inject pairing info to BLE context
-  if (g_dev_controller.ltk[0] != 0) {
+  if (g_controller_firmware.ltk[0] != 0) {
     int rc = pro2_inject_pairing_info_to_ble_context();
     if (rc != 0) {
       ESP_LOGE(LOG_APP, "Failed to inject pairing info to BLE context");
@@ -175,12 +175,12 @@ static uint8_t instance = 0;
 static void ble_advertise_normal() {
   int rc;
   // reset device status
-  if (g_dev_controller.type == DEVICE_TYPE_JOYCON) {
+  if (g_controller_firmware.type == CONTROLLER_TYPE_JOYCON) {
     // TODO Joycon
     ESP_LOGE(LOG_APP, "Joycon not implemented");
     return;
   }
-  g_status = DEV_ADV_IND;
+  g_device_status = DEV_ADV_IND;
 
   if (ble_gap_adv_active()) {
     ESP_LOGI(LOG_APP, "Advertising instance already active");
@@ -197,18 +197,18 @@ static void ble_advertise_normal() {
   // set manufacturer data
   ESP_LOGI(LOG_APP, "Setting manufacturer data for advertising");
   uint8_t m_head[3] = { 0x02, 0x01, 0x06 };
-  uint8_t m_size = sizeof(g_dev_controller.manufacturer_data) + 1; // 27
+  uint8_t m_size = sizeof(g_controller_firmware.manufacturer_data) + 1; // 27
   uint8_t m_spec[2] = { m_size, 0xFF };
-  uint8_t adv_data[sizeof(m_head) + sizeof(m_spec) + sizeof(g_dev_controller.manufacturer_data)];
+  uint8_t adv_data[sizeof(m_head) + sizeof(m_spec) + sizeof(g_controller_firmware.manufacturer_data)];
   memcpy(adv_data, m_head, sizeof(m_head));
   memcpy(adv_data + sizeof(m_head), m_spec, sizeof(m_spec));
   // TODO test wakeup flag
   if (g_adv_opcode != 0x00) {
-    g_dev_controller.manufacturer_data[11] = g_adv_opcode;
+    g_controller_firmware.manufacturer_data[11] = g_adv_opcode;
   }
   memcpy(adv_data + sizeof(m_head) + sizeof(m_spec), 
-         g_dev_controller.manufacturer_data, 
-         sizeof(g_dev_controller.manufacturer_data));
+         g_controller_firmware.manufacturer_data, 
+         sizeof(g_controller_firmware.manufacturer_data));
 
   rc = ble_gap_adv_set_data(adv_data, sizeof(adv_data));
   if (rc != 0) {
@@ -230,12 +230,12 @@ void ble_advertise() {
   // ble_advertise_normal();
   int rc;
   // reset device status
-  if (g_dev_controller.type == DEVICE_TYPE_JOYCON) {
+  if (g_controller_firmware.type == CONTROLLER_TYPE_JOYCON) {
     // TODO Joycon
     ESP_LOGE(LOG_APP, "Joycon not implemented");
     return;
   }
-  g_status = DEV_ADV_IND;
+  g_device_status = DEV_ADV_IND;
 
   // only one instance advertising
   if (ble_gap_ext_adv_active(instance)) {
@@ -272,20 +272,20 @@ void ble_advertise() {
   // set manufacturer data
   ESP_LOGI(LOG_APP, "Setting manufacturer data for advertising");
   struct os_mbuf* adv_data;
-  uint8_t m_len = sizeof(g_dev_controller.manufacturer_data) + 5;
+  uint8_t m_len = sizeof(g_controller_firmware.manufacturer_data) + 5;
   uint8_t m_data[m_len];
   // Flags 0x01 LE General Discoverable + BR/EDR Not Supported
   uint8_t m_head[3] = { 0x02, 0x01, 0x06 };
   // Manufacturer Specific Data, len + 0xFF + manufacturer_data
-  uint8_t m_size = sizeof(g_dev_controller.manufacturer_data) + 1;
+  uint8_t m_size = sizeof(g_controller_firmware.manufacturer_data) + 1;
   uint8_t m_spec[2] = { m_size, 0xFF };
   memcpy(m_data, m_head, sizeof(m_head));
   memcpy(m_data + sizeof(m_head), m_spec, sizeof(m_spec));
   // TODO test wakeup flag
   if (g_adv_opcode != 0x00) {
-    g_dev_controller.manufacturer_data[11] = g_adv_opcode;
+    g_controller_firmware.manufacturer_data[11] = g_adv_opcode;
   }
-  memcpy(m_data + sizeof(m_head) + sizeof(m_spec), g_dev_controller.manufacturer_data, sizeof(g_dev_controller.manufacturer_data));
+  memcpy(m_data + sizeof(m_head) + sizeof(m_spec), g_controller_firmware.manufacturer_data, sizeof(g_controller_firmware.manufacturer_data));
 
   adv_data = os_msys_get_pkthdr(sizeof(m_data), 0);
   rc = os_mbuf_append(adv_data, m_data, sizeof(m_data));
@@ -408,11 +408,11 @@ int custom_store_config_write(int obj_type, const union ble_store_value *val) {
 }
 
 int custom_store_gen_key_cb(uint8_t key,struct ble_store_gen_key *gen_key, uint16_t conn_handle) {
-  if (key == BLE_STORE_GEN_KEY_LTK && conn_handle == g_dev_ns2.conn_handle) {
+  if (key == BLE_STORE_GEN_KEY_LTK && conn_handle == g_console_ns2.conn_handle) {
         ESP_LOGD(LOG_APP, "call custom_store_gen_key_cb LTK");
         // Only intercept LTK generation and verify conn_handle ,wait testing
         // copy ltk to KEY generate callback function
-        memcpy(g_dev_controller.ltk, gen_key->ltk_periph, LTK_KEY_SIZE);
+        memcpy(g_controller_firmware.ltk, gen_key->ltk_periph, LTK_KEY_SIZE);
     }
     return -1;
 }

@@ -256,7 +256,7 @@ static uint8_t cmd_0x07_handler(const uint8_t subcmd, const uint16_t payload_len
  * @param type device type
  * @param out feature encode buffer
  */
-static void encode_feature_info(uint8_t flags, dev_type_t type, uint8_t out[8]) {
+static void encode_feature_info(uint8_t flags, controller_type_t type, uint8_t out[8]) {
     // reset 0x00
     memset(out, 0x00, 8);
 
@@ -269,15 +269,15 @@ static void encode_feature_info(uint8_t flags, dev_type_t type, uint8_t out[8]) 
     }
 
     if (flags & FEATURE_0C_04_IMU) {
-        out[2] = (type == DEVICE_TYPE_JOYCON) ? 0x03U : 0x01U;
+        out[2] = (type == CONTROLLER_TYPE_JOYCON) ? 0x03U : 0x01U;
     }
 
     if (flags & FEATURE_0C_08_UNUSED) {
-        out[3] = (type == DEVICE_TYPE_JOYCON) ? 0x03U : 0x01U;
+        out[3] = (type == CONTROLLER_TYPE_JOYCON) ? 0x03U : 0x01U;
     }
 
     if (flags & FEATURE_0C_10_MOUSE_DATA) {
-        out[4] = (type == DEVICE_TYPE_JOYCON) ? 0x03U : 0x01U;
+        out[4] = (type == CONTROLLER_TYPE_JOYCON) ? 0x03U : 0x01U;
     }
 
     if (flags & FEATURE_0C_20_RUMBLE) {
@@ -298,7 +298,7 @@ static uint8_t cmd_0x0c_handler(const uint8_t subcmd, const uint16_t payload_len
         case 0x01:
             // 00 00 00 00 | feature encode buffer (8 bytes)
             uint8_t feature_info[8] = { 0x00 };
-            encode_feature_info(0x07, g_dev_controller.type, feature_info);
+            encode_feature_info(0x07, g_controller_firmware.type, feature_info);
             memset(data_out, 0x00, 0x04);
             memcpy(data_out + 4, feature_info, 0x08);
             return 0x0c;
@@ -330,10 +330,10 @@ static uint8_t cmd_0x10_handler(const uint8_t subcmd, const uint16_t payload_len
         // major minor micro(firmware version) | type(JC-L0x00 JC-R0x01 Pro20x02) | mmm(bluetooth patch version) | padding | mmm(DSP firmware version) | padding
         // 01 00 0e 02 0c 00 00 00 ff ff ff ff
         case 0x01:
-            if (g_dev_controller.type == DEVICE_TYPE_PRO2) {
+            if (g_controller_firmware.type == CONTROLLER_TYPE_PRO2) {
                 memcpy(data_out, pro2_firmware_info, PRO2_FIRMWARE_INFO_SIZE);
                 return PRO2_FIRMWARE_INFO_SIZE;
-            } else if (g_dev_controller.type == DEVICE_TYPE_JOYCON) {
+            } else if (g_controller_firmware.type == CONTROLLER_TYPE_JOYCON) {
                 // TODO Joycon firmware info
             }
             // default pro2
@@ -390,18 +390,18 @@ static uint8_t cmd_0x15_handler(const uint8_t subcmd, const uint16_t payload_len
             uint8_t mac_addr[ESP_BD_ADDR_LEN] = { 0x00 };
             memcpy(mac_addr, data_in + 10, ESP_BD_ADDR_LEN);
             // ns2 mac addr check
-            if (memcmp(g_dev_ns2.ble_addr.val, mac_addr, ESP_BD_ADDR_LEN) == 0) {
+            if (memcmp(g_console_ns2.ble_addr.val, mac_addr, ESP_BD_ADDR_LEN) == 0) {
                 data_out[0] = 0x01;     // fixed
                 data_out[1] = 0x04;     // magic
                 data_out[2] = 0x01;     // size?
                 // response controller mac addr (little endian)
-                memcpy(data_out + 3, g_dev_controller.addr_re, ESP_BD_ADDR_LEN);
+                memcpy(data_out + 3, g_controller_firmware.addr_re, ESP_BD_ADDR_LEN);
                 return ESP_BD_ADDR_LEN + 3;
             } else {
                 ESP_LOGW(LOG_APP, "remote NS2 address:");
                 log_print_addr(mac_addr);
                 ESP_LOGW(LOG_APP, "local NS2 address:");
-                log_print_addr(g_dev_ns2.ble_addr.val);
+                log_print_addr(g_console_ns2.ble_addr.val);
                 ESP_LOGE(LOG_APP, "NS2 address mismatch");
             }
             return 0x00;
@@ -415,12 +415,12 @@ static uint8_t cmd_0x15_handler(const uint8_t subcmd, const uint16_t payload_len
 
             // generate ltk
             for (int i = 0; i < LTK_KEY_SIZE; i++) {
-                g_dev_controller.ltk[i] = ltk_A1[LTK_KEY_SIZE - i - 1] ^ g_dev_controller.ltk_key_b1[LTK_KEY_SIZE - i - 1];
+                g_controller_firmware.ltk[i] = ltk_A1[LTK_KEY_SIZE - i - 1] ^ g_controller_firmware.ltk_key_b1[LTK_KEY_SIZE - i - 1];
             }
 
             // always response B1
             data_out[0] = 0x01;
-            memcpy(data_out + 1, g_dev_controller.ltk_key_b1, LTK_KEY_SIZE);
+            memcpy(data_out + 1, g_controller_firmware.ltk_key_b1, LTK_KEY_SIZE);
             return LTK_KEY_SIZE + 1;
         // confirm ltk
         case 0x02:
@@ -432,16 +432,16 @@ static uint8_t cmd_0x15_handler(const uint8_t subcmd, const uint16_t payload_len
             memcpy(data_A2_re, data_in + 9, LTK_KEY_SIZE);
             reverse_bytes(data_A2_re, data_A2, LTK_KEY_SIZE);
 
-            log_print_ltk_hex("LTK", g_dev_controller.ltk);
+            log_print_ltk_hex("LTK", g_controller_firmware.ltk);
             log_print_ltk_hex("A2 RE", data_A2_re);
 
-            int rc = aes128_ecb(g_dev_controller.ltk, data_A2, data_B2);
+            int rc = aes128_ecb(g_controller_firmware.ltk, data_A2, data_B2);
             if (rc == 0) {
                 reverse_bytes(data_B2, data_B2_re, LTK_KEY_SIZE);
                 log_print_ltk_hex("B2", data_B2);
                 log_print_ltk_hex("B2 RE", data_B2_re);
 
-                reverse_bytes(g_dev_controller.ltk, g_dev_controller.ltk_re, LTK_KEY_SIZE);
+                reverse_bytes(g_controller_firmware.ltk, g_controller_firmware.ltk_re, LTK_KEY_SIZE);
                 
                 data_out[0] = 0x01;
                 memcpy(data_out + 1, data_B2, LTK_KEY_SIZE);

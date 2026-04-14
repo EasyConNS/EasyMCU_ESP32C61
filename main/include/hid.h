@@ -18,7 +18,7 @@
 #endif
 #define HID_REPORT_INTERVAL     CONFIG_HID_REPORT_INTERVAL
 typedef struct {
-    dev_type_t type;
+    controller_type_t type;
     void *report;
 } hid_device_report_t;
 
@@ -51,7 +51,7 @@ extern uint16_t hid_report_gatt_handle;
 void hid_start_task(void);
 void hid_stop_task(void);
 
-const hid_device_ops_t* hid_get_device_ops(dev_type_t type);
+const hid_device_ops_t* hid_get_device_ops(controller_type_t type);
 
 // stick data format
 void pack_stick_data(uint8_t out[3], uint16_t x, uint16_t y);

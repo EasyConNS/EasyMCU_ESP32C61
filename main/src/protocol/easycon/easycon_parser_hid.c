@@ -90,7 +90,7 @@ static parse_result_t easycon_hid_parse_frame(void *state,
     uint16_t right_stick_x = ec_scale_stick_value(rx_raw);
     uint16_t right_stick_y = ec_scale_stick_value(255 - ry_raw);
 
-    const hid_device_ops_t *ops = hid_get_device_ops(g_dev_controller.type);
+    const hid_device_ops_t *ops = hid_get_device_ops(g_controller_firmware.type);
     if (ops) {
         for (size_t i = 0; i < BUTTON_MAP_SIZE; i++) {
             pro2_btns btn = button_map[i];

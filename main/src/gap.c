@@ -34,14 +34,14 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
         rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
         assert(rc == 0);
         print_conn_desc(&desc);
-        if (g_status == DEV_ADV_IND) {
-          g_dev_ns2.ble_addr.type = desc.peer_ota_addr.type;
-          memcpy(g_dev_ns2.ble_addr.val, desc.peer_ota_addr.val, 6);
+        if (g_device_status == DEV_ADV_IND) {
+          g_console_ns2.ble_addr.type = desc.peer_ota_addr.type;
+          memcpy(g_console_ns2.ble_addr.val, desc.peer_ota_addr.val, 6);
           ESP_LOGI(LOG_BLE_GAP, "connected, set nintendo switch addr, addr=");
-          log_print_addr(g_dev_ns2.ble_addr.val);
+          log_print_addr(g_console_ns2.ble_addr.val);
         } else {
           ESP_LOGE(LOG_BLE_GAP, "device not ready, reset device");
-          g_status = DEV_BOOT;
+          g_device_status = DEV_BOOT;
         }
       } else {
         // failed, restart advertising
@@ -104,7 +104,7 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
       
       // 0x000e init hid report
       if (event->subscribe.attr_handle == 0x000e && event->subscribe.cur_notify == 1) {
-        g_status = DEV_READY;
+        g_device_status = DEV_READY;
         hid_start_task();
       }
       break;
