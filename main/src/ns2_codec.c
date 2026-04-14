@@ -1,6 +1,6 @@
 #include "device.h"
 #include "pro2.h"
-#include "ns2_ble_gatt.h"
+#include "ns2_codec.h"
 #include "controller/hid_controller_pro2.h"
 #include "utils.h"
 

@@ -5,7 +5,7 @@
 #include "device.h"
 #include "controller/hid_controller.h"
 #include "transport/transport.h"
-#include "ns2_ble_gatt.h"
+#include "ns2_codec.h"
 
 void app_main(void)
 {
