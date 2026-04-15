@@ -127,10 +127,7 @@ static parse_result_t easycon_hid_parse_frame(void *state,
         ops->set_left_stick(back_buffer, left_stick_x, left_stick_y);
         ops->set_right_stick(back_buffer, right_stick_x, right_stick_y);
 
-        /* TODO: After introducing HID bridge, replace direct back_buffer access
-         * with bridge API or mark rsp as HID packet so the router can set
-         * swap_request uniformly. Currently the caller must call
-         * g_hid_controller.ops->request_swap(&g_hid_controller) after protocol_route(). */
+        g_hid_controller.ops->hid_commit(&g_hid_controller);
     }
 
     rsp->len = 0;

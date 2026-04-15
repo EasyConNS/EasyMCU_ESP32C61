@@ -200,7 +200,7 @@ static controller_hid_report_t* controller_get_back_buffer_impl(controller_handl
     return ctrl->buffer.back_buffer;
 }
 
-static void controller_request_swap_impl(controller_handle_t *ctrl) {
+static void controller_hid_commit_impl(controller_handle_t *ctrl) {
     if (ctrl == NULL) {
         return;
     }
@@ -215,5 +215,5 @@ const controller_ops_t controller_ops = {
     .start_task     = controller_start_task_impl,
     .stop_task      = controller_stop_task_impl,
     .get_back_buffer = controller_get_back_buffer_impl,
-    .request_swap   = controller_request_swap_impl,
+    .hid_commit     = controller_hid_commit_impl,
 };
