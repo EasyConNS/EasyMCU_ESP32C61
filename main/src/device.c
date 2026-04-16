@@ -303,6 +303,7 @@ void ble_advertise() {
   rc = ble_gap_ext_adv_set_data(instance, adv_data);
   if (rc != 0) {
     ESP_LOGE(LOG_APP, "Error setting manufacturer data for advertising; rc=%d", rc);
+    os_mbuf_free_chain(adv_data);
     return;
   }
 
