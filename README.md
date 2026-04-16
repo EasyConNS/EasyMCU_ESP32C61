@@ -10,6 +10,9 @@
 - 开发板默认USB转UART芯片通常为ch210x [乐鑫官方下载地址](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads)
 - 搞不懂的找卖你板子的商家
 
+# 下载
+[github releases](https://github.com/EasyConNS/EasyMCU_ESP32C61/releases)
+
 # 已知问题
 - 暂时只提供手柄功能，默认颜色与Pro2一致，按钮颜色为Pokemon ZA绿，其他功能未全量测试，不建议使用
 - **不支持Amiibo**
