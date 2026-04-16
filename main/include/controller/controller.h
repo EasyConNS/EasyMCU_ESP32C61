@@ -44,4 +44,7 @@ int controller_init(nvs_handle_t nvs_handle);
 // Generic pairing info save, dispatches to pro2/joycon
 int controller_pairing_info_save(void);
 
+// Generic pairing info remove, dispatches to pro2/joycon
+int controller_pairing_info_erase(void);
+
 #endif // _CONTROLLER_CONTROLLER_H_

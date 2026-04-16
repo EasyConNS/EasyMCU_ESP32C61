@@ -87,11 +87,10 @@ int pro2_device_init(nvs_handle_t nvs_handle) {
 static int pro2_pairing_info_nvs_save() {
   nvs_handle_t nvs_handle;
   esp_err_t ret;
-  const char* pairing_ns = (g_controller_firmware.type == CONTROLLER_TYPE_PRO2) ? NVS_NAME_PAIRING_PRO2 : NVS_NAME_PAIRING_JC;
+  const char* pairing_ns = NVS_NAME_PAIRING_PRO2;
   ret = nvs_open(pairing_ns, NVS_READWRITE, &nvs_handle);
   if (ret != ESP_OK) {
     ESP_LOGE(LOG_BLE_NVS, "Failed to open NVS namespace: %s", pairing_ns);
-    nvs_close(nvs_handle);
     return ret;
   }
 
@@ -118,8 +117,46 @@ static int pro2_pairing_info_nvs_save() {
 }
 
 int pro2_pairing_info_save() {
+  if (g_controller_firmware.type != CONTROLLER_TYPE_PRO2) {
+    return 0;
+  }
   #ifdef CONFIG_SAVE_PAIRING_INFO
     return pro2_pairing_info_nvs_save();
+  #endif
+  return 0;
+}
+
+int pro2_pairing_info_nvs_erase() {
+  nvs_handle_t nvs_handle;
+  esp_err_t ret;
+  const char* pairing_ns = NVS_NAME_PAIRING_PRO2;
+  ret = nvs_open(pairing_ns, NVS_READWRITE, &nvs_handle);
+  if (ret != ESP_OK) {
+    ESP_LOGE(LOG_BLE_NVS, "Failed to open NVS namespace: %s", pairing_ns);
+    return ret;
+  }
+
+  ret = nvs_erase_all(nvs_handle);
+  if (ret != ESP_OK) {
+    ESP_LOGE(LOG_BLE_NVS, "Failed to erase NVS namespace: %s", pairing_ns);
+    nvs_close(nvs_handle);
+    return ret;
+  }
+
+  ret = nvs_commit(nvs_handle);
+  if (ret != ESP_OK) {
+    ESP_LOGE(LOG_BLE_NVS, "Failed to commit erased NVS namespace: %s", pairing_ns);
+  }
+  nvs_close(nvs_handle);
+  return ret;
+}
+
+int pro2_pairing_info_erase() {
+  if (g_controller_firmware.type != CONTROLLER_TYPE_PRO2) {
+    return 0;
+  }
+  #ifdef CONFIG_SAVE_PAIRING_INFO
+    return pro2_pairing_info_nvs_erase();
   #endif
   return 0;
 }

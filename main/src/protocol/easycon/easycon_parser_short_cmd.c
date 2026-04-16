@@ -3,6 +3,7 @@
 #ifdef CONFIG_PROTOCOL_LAYER_EASYCON
 
 #include "buffer/zc_buffer.h"
+#include "controller/hid_controller.h"
 #include "utils.h"
 
 #include <stdint.h>
@@ -59,8 +60,10 @@ static parse_result_t easycon_short_cmd_parse_frame(void *state,
         s_short_cmd_rsp = EASYCON_RPY_SCRIPT_ACK;
     } else if (cmd == EASYCON_CMD_LED) {
         s_short_cmd_rsp = 0x00;
+    } else if (cmd == EASYCON_CMD_UNPAIR) {
+        s_short_cmd_rsp = controller_pairing_info_erase() == 0 ? EASYCON_RPY_ACK : EASYCON_RPY_ERROR;
     }
-    /* UNPAIR and others keep EASYCON_RPY_ACK */
+    /* others keep EASYCON_RPY_ACK */
 
     (void)state;
     rsp->data = &s_short_cmd_rsp;
