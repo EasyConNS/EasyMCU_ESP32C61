@@ -48,6 +48,16 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
           memcpy(g_console_ns2.ble_addr.val, desc.peer_ota_addr.val, 6);
           ESP_LOGI(LOG_BLE_GAP, "connected, set nintendo switch addr, addr=");
           log_print_addr(g_console_ns2.ble_addr.val);
+          struct ble_gap_upd_params params;
+          memset(&params, 0, sizeof(params));
+          params.itvl_min = 6;
+          params.itvl_max = desc.conn_itvl;
+          params.latency = 0;
+          params.supervision_timeout = desc.supervision_timeout;
+          rc = ble_gap_update_params(event->connect.conn_handle, &params);
+          if (rc != 0) {
+            ESP_LOGE(LOG_BLE_GAP, "failed to update connection parameters, rc=%d", rc);
+          }
         } else {
           ESP_LOGE(LOG_BLE_GAP, "device not ready, reset device");
           device_status_set(DEV_BOOT);
@@ -104,7 +114,7 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
         event->notify_tx.indication);
       return 0;
     case BLE_GAP_EVENT_SUBSCRIBE:
-      ESP_LOGI(LOG_BLE_GAP, "subscribe event; conn_handle=0x00%02x attr_handle=0x00%02x "
+      ESP_LOGD(LOG_BLE_GAP, "subscribe event; conn_handle=0x00%02x attr_handle=0x00%02x "
         "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
         event->subscribe.conn_handle,
         event->subscribe.attr_handle,
