@@ -612,7 +612,7 @@ int cmd_process(pro2_gatt_rsp_t* rsp, uint8_t* data_in, uint16_t payload_len) {
     if (handler != NULL) {
         out_len = handler(subcmd, payload_len, data_in, data_out);
     } else if(cmd == 0x09 || cmd == 0x0a) {
-        ESP_LOGW(LOG_APP, "confirm cmd %02x, subcmd %02x, response default", cmd, subcmd);
+        ESP_LOGD(LOG_APP, "confirm cmd %02x, subcmd %02x, response default", cmd, subcmd);
         out_len = 0;
     } else {
         ESP_LOGW(LOG_APP, "unknow cmd %02x, subcmd %02x", cmd, subcmd);

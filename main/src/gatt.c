@@ -607,6 +607,11 @@ int gatt_notify(uint16_t conn_handle, uint16_t chr_val_handle,
         return BLE_HS_ENOTCONN;
     }
 
+    if (os_msys_num_free() < 5) {
+        ESP_LOGE(LOG_BLE_GATT, "Not enough memory for mbuf");
+        return BLE_HS_ENOMEM;
+    }
+
     // init mbuf
     om = ble_hs_mbuf_from_flat(data, data_len);
     if (om == NULL) {
@@ -618,7 +623,8 @@ int gatt_notify(uint16_t conn_handle, uint16_t chr_val_handle,
     rc = ble_gatts_notify_custom(conn_handle, chr_val_handle, om);
     if (rc != 0) {
         ESP_LOGE(LOG_BLE_GATT, "ble_gatts_notify failed: %d", rc);
-        os_mbuf_free_chain(om);
+        // ble_gatts_notify_custom always frees the mbuf, so we don't need to
+        // os_mbuf_free_chain(om);
         return rc;
     }
 

@@ -1,6 +1,7 @@
 # project
 scripts/.backup
 .backup/
+release/
 
 # vscode
 .vscode/

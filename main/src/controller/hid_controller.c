@@ -76,6 +76,11 @@ static void controller_task(void *arg) {
             if (rc != 0) {
                 ESP_LOGE(LOG_HID, "controller report send failed, rc: %d", rc);
             }
+
+            if (rc == BLE_HS_ENOTCONN) {
+                // yield briefly to let mbufs free up 
+                vTaskDelay(1);
+            }
         }
 
         // precise interval
