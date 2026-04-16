@@ -126,3 +126,11 @@ int controller_pairing_info_save(void) {
     ESP_LOGE(LOG_APP, "JoyCon pairing info save not implemented");
     return -1;
 }
+
+int controller_pairing_info_erase(void) {
+    if (g_controller_firmware.type == CONTROLLER_TYPE_PRO2) {
+        return pro2_pairing_info_erase();
+    }
+    ESP_LOGE(LOG_APP, "JoyCon pairing info remove not implemented");
+    return -1;
+}

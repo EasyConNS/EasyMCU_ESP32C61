@@ -34,7 +34,7 @@ release/
 **/build/
 build/
 *.o
-*.a
+build/*.a
 *.out
 *.exe # For any host-side utilities compiled on Windows
 
