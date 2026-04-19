@@ -51,8 +51,9 @@ Since NS2 protocol requires 5ms connection interval while standard BLE specifica
 2. **Apply patch**:
    ```bash
    cp patch/esp32c61/libble_app.a $IDF_PATH/components/bt/controller/lib_esp32c6/esp32c6-bt-lib/esp32c61/
+   cp patch/esp32c6/libble_app.a $IDF_PATH/components/bt/controller/lib_esp32c6/esp32c6-bt-lib/esp32c6/
    ```
-   *Note: Currently only precompiled patch files for ESP32-C61 are provided. Other models require self-compilation or future support*
+   *Note: Currently only precompiled patch files for ESP32-C6/C61 are provided. Other models require self-compilation or future support*
 
 ### Build and Flash
 ```bash
@@ -108,10 +109,15 @@ Patch files are extracted and modified from official firmware through **binary r
 
 ### Current Status
 - **ESP32-C61** ✅ Patch tested successfully, stable connection
+- **ESP32-C6** ✅ Patch tested successfully, stable connection
 - **Other models** ⚠️ Theoretically all models using Apache NimBLE open-source stack are supported, but require compiling corresponding patch files for different models
 - **Patch script** 🔧 Under development, will provide automated patch generation script in the future
 
 ## Known Issues
+
+## Reconnection Issue
+The firmware supports automatic reconnection. However, when connecting the controller on the Change Grip/Order interface of NS2, HID reports become stuck. The root cause is still under investigation.  
+It is not recommended to connect the controller via this interface afterwards. Only enter this interface for initial pairing. After subsequent power-on, the MCU will broadcast automatically and reconnect seamlessly.  
 
 ### ESP32-S3 Support Issues
 Due to ESP32-S3 using a closed-source Bluetooth stack, we cannot directly modify connection parameters. I've submitted related ISSUEs to Espressif, requesting open interfaces or technical support. Current progress is slow and requires community push.

@@ -53,8 +53,9 @@ cd ESP32-BLE5-NSController-Emulator
 2. **应用补丁**：
    ```bash
    cp patch/esp32c61/libble_app.a $IDF_PATH/components/bt/controller/lib_esp32c6/esp32c6-bt-lib/esp32c61/
+   cp patch/esp32c6/libble_app.a $IDF_PATH/components/bt/controller/lib_esp32c6/esp32c6-bt-lib/esp32c6/
    ```
-   *注意：目前仅提供 ESP32-C61 的预编译补丁文件，其他型号需要自行编译或等待后续支持*
+   *注意：目前仅提供 ESP32-C6/C61 的预编译补丁文件，其他型号需要自行编译或等待后续支持*
 
 ### 编译和烧录
 ```bash
@@ -110,10 +111,15 @@ idf.py menuconfig
 
 ### 当前状态
 - **ESP32-C61** ✅ 补丁已测试成功，连接稳定
+- **ESP32-C6** ✅ 补丁已测试成功，连接稳定
 - **其他型号** ⚠️ 理论上所有使用 Apache NimBLE 开源堆栈的型号都支持，但需要针对不同型号编译对应的补丁文件
 - **补丁脚本** 🔧 正在开发中，后续将提供自动化的补丁生成脚本
 
 ## 已知问题
+
+### 重连问题
+固件会自动重连，但目前在NS2中开启“更改握法/顺序”界面连上后HID报告会出现阻塞，暂未查明原因。  
+不建议使用该界面功能连接手柄，只需要在第一次配对时进入此界面，后续单片机上电后会自动广播并重连。  
 
 ### ESP32-S3 支持问题
 由于 ESP32-S3 使用了闭源的蓝牙协议栈，目前无法直接修改连接参数。我已经向乐鑫提交了相关 ISSUE，请求开放相关接口或提供技术支持。当前进展缓慢，需要社区共同推动。
