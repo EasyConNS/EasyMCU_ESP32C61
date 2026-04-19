@@ -12,8 +12,6 @@
 
 #include "soc/usb_serial_jtag_struct.h"
 
-#define TAG "transport_usb_serial_jtag"
-
 #define USJ_RX_TIMEOUT_MS   10
 
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -102,19 +100,19 @@ static int transport_usb_serial_jtag_open(void *instance, void *config)
   transport_handle_t *tp = (transport_handle_t *)instance;
 
   if (tp == NULL || config == NULL) {
-    ESP_LOGE(TAG, "invalid arguments");
+    ESP_LOGE(LOG_TRANSPORT, "invalid arguments");
     return -1;
   }
 
   transport_usb_serial_jtag_ctx_t *ctx = (transport_usb_serial_jtag_ctx_t *)tp->hardware_ctx;
   if (ctx != NULL && ctx->opened) {
-    ESP_LOGW(TAG, "USB Serial/JTAG already opened");
+    ESP_LOGW(LOG_TRANSPORT, "USB Serial/JTAG already opened");
     return 0;
   }
 
   ctx = (transport_usb_serial_jtag_ctx_t *)malloc(sizeof(transport_usb_serial_jtag_ctx_t));
   if (ctx == NULL) {
-    ESP_LOGE(TAG, "failed to allocate context");
+    ESP_LOGE(LOG_TRANSPORT, "failed to allocate context");
     return -1;
   }
   memset(ctx, 0, sizeof(transport_usb_serial_jtag_ctx_t));
@@ -132,7 +130,7 @@ static int transport_usb_serial_jtag_open(void *instance, void *config)
 
   esp_err_t err = usb_serial_jtag_driver_install(&driver_cfg);
   if (err != ESP_OK) {
-    ESP_LOGE(TAG, "usb_serial_jtag_driver_install failed: %s", esp_err_to_name(err));
+    ESP_LOGE(LOG_TRANSPORT, "usb_serial_jtag_driver_install failed: %s", esp_err_to_name(err));
     free(ctx);
     return -1;
   }
@@ -140,7 +138,7 @@ static int transport_usb_serial_jtag_open(void *instance, void *config)
   ctx->opened = true;
   tp->hardware_ctx = ctx;
 
-  ESP_LOGI(TAG, "USB Serial/JTAG opened: rx_buf=%d, tx_buf=%d",
+  ESP_LOGI(LOG_TRANSPORT, "USB Serial/JTAG opened: rx_buf=%d, tx_buf=%d",
            ctx->config.rx_buffer_size, ctx->config.tx_buffer_size);
   return 0;
 }
@@ -166,7 +164,7 @@ static void transport_usb_serial_jtag_close(void *instance)
   ctx->opened = false;
   tp->rx_buffer = NULL;
 
-  ESP_LOGI(TAG, "USB Serial/JTAG closed");
+  ESP_LOGI(LOG_TRANSPORT, "USB Serial/JTAG closed");
 
   free(ctx);
   tp->hardware_ctx = NULL;
@@ -182,17 +180,17 @@ static int transport_usb_serial_jtag_activate_rx(void *instance, zc_ringbuf_t *r
   transport_usb_serial_jtag_ctx_t *ctx = (transport_usb_serial_jtag_ctx_t *)tp->hardware_ctx;
 
   if (ctx == NULL || !ctx->opened) {
-    ESP_LOGE(TAG, "USB Serial/JTAG not opened");
+    ESP_LOGE(LOG_TRANSPORT, "USB Serial/JTAG not opened");
     return -1;
   }
 
   if (rb == NULL) {
-    ESP_LOGE(TAG, "rx buffer is NULL");
+    ESP_LOGE(LOG_TRANSPORT, "rx buffer is NULL");
     return -1;
   }
 
   if (ctx->running) {
-    ESP_LOGW(TAG, "RX already active");
+    ESP_LOGW(LOG_TRANSPORT, "RX already active");
     return 0;
   }
 
@@ -220,12 +218,12 @@ static int transport_usb_serial_jtag_activate_rx(void *instance, zc_ringbuf_t *r
 #endif
 
   if (rc != pdPASS) {
-    ESP_LOGE(TAG, "Failed to create USB Serial/JTAG RX task");
+    ESP_LOGE(LOG_TRANSPORT, "Failed to create USB Serial/JTAG RX task");
     ctx->running = false;
     return -1;
   }
 
-  ESP_LOGI(TAG, "USB Serial/JTAG RX activated");
+  ESP_LOGI(LOG_TRANSPORT, "USB Serial/JTAG RX activated");
   return 0;
 }
 
@@ -252,11 +250,11 @@ static int transport_usb_serial_jtag_deactivate_rx(void *instance)
       waited += step_ms;
     }
     if (ctx->rx_task != NULL) {
-      ESP_LOGW(TAG, "RX task did not exit in time");
+      ESP_LOGW(LOG_TRANSPORT, "RX task did not exit in time");
     }
   }
 
-  ESP_LOGI(TAG, "USB Serial/JTAG RX deactivated");
+  ESP_LOGI(LOG_TRANSPORT, "USB Serial/JTAG RX deactivated");
   return 0;
 }
 
@@ -270,18 +268,18 @@ static int transport_usb_serial_jtag_submit_tx(void *instance, const uint8_t *da
   transport_usb_serial_jtag_ctx_t *ctx = (transport_usb_serial_jtag_ctx_t *)tp->hardware_ctx;
 
   if (ctx == NULL || !ctx->opened) {
-    ESP_LOGE(TAG, "USB Serial/JTAG not ready for TX");
+    ESP_LOGE(LOG_TRANSPORT, "USB Serial/JTAG not ready for TX");
     return -1;
   }
 
   if (!usb_serial_jtag_is_connected()) {
-    ESP_LOGW(TAG, "USB Serial/JTAG not connected to host");
+    ESP_LOGW(LOG_TRANSPORT, "USB Serial/JTAG not connected to host");
     return -1;
   }
 
   int written = usb_serial_jtag_write_bytes(data, len, pdMS_TO_TICKS(100));
   if (written < 0) {
-    ESP_LOGE(TAG, "usb_serial_jtag_write_bytes failed");
+    ESP_LOGE(LOG_TRANSPORT, "usb_serial_jtag_write_bytes failed");
     return -1;
   }
 
