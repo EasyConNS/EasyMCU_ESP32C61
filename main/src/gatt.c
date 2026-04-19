@@ -284,31 +284,32 @@ static int gatt_svc_write_no_rsp_access(uint16_t conn_handle, uint16_t attr_hand
   if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
     if (attr_handle == gatt_svr_chr_0016_val_handle) {
       // 0x0016 handle no rsp
+      // NS2: all write command responses are sent via notify, never via GATT response
       uint16_t data_len = os_mbuf_len(ctxt->om);
       ESP_LOGD(LOG_APP, "Received data length: %d", data_len);
       if (data_len < 8 + NS2_DATA_EMPTY_LEN) {
         ESP_LOGE(LOG_APP, "Invalid data length: %d (expected >= 8)", data_len);
-        return BLE_ATT_ERR_UNLIKELY;
+        return 0;
       }
 
       uint8_t *data_buf = (uint8_t*) malloc((data_len - NS2_DATA_EMPTY_LEN) * sizeof(uint8_t));
       if (data_buf == NULL) {
         ESP_LOGE(LOG_APP, "Failed to allocate memory for data buffer");
-        return BLE_ATT_ERR_INSUFFICIENT_RES;
+        return 0;
       }
 
       rc = os_mbuf_copydata(ctxt->om, NS2_DATA_EMPTY_LEN, data_len - NS2_DATA_EMPTY_LEN, data_buf);
       if (rc != 0) {
         ESP_LOGE(LOG_APP, "Failed to copy data from mbuf");
         free(data_buf);
-        return BLE_ATT_ERR_INSUFFICIENT_RES;
+        return 0;
       }
 
       pro2_gatt_rsp_t* rsp = malloc(sizeof(pro2_gatt_rsp_t));
       if (rsp == NULL) {
         ESP_LOGE(LOG_APP, "Failed to allocate memory for response structure");
         free(data_buf);
-        return BLE_ATT_ERR_INSUFFICIENT_RES;
+        return 0;
       }
       // Initialize rsp_data to NULL to prevent free on uninitialized pointer
       rsp->rsp_data = NULL;
@@ -324,6 +325,9 @@ static int gatt_svc_write_no_rsp_access(uint16_t conn_handle, uint16_t attr_hand
       } else {
         // send notify use 0x001e
         rc = gatt_notify(conn_handle, gatt_svr_chr_001e_val_handle, rsp->rsp_data, rsp->rsp_len);
+        if (rc != 0) {
+          ESP_LOGE(LOG_APP, "notify response failed: 0x%02x", rc);
+        }
       }
 
       // Cleanup allocated resources
@@ -332,7 +336,8 @@ static int gatt_svc_write_no_rsp_access(uint16_t conn_handle, uint16_t attr_hand
       }
       free(rsp);
       free(data_buf);
-      return rc;
+      // NS2: always return 0, feedback is only through notify
+      return 0;
     } else if (attr_handle == gatt_svr_chr_0012_val_handle) {
       // 0x0012 handle no rsp
       // Vibration?
