@@ -3,11 +3,14 @@
 
 # 开发板
 - 当前固件在官方开发板ESP32-C61-DevKitC-1上测试成功
+- 在非官方固件的ESP32-C6上测试成功，推荐连接参考群文档
 - ESP32-C61-DevKitC-1请使用USB口连接PC用于与EasyCon进行通讯，官方开发板标记在typec口内侧
 - ESP32-C61-DevKitC-1请使用左侧标记为UART的Type-C口烧写固件
+- ESP32-C6 与 C61使用方式一致，推荐链接中的板子，左边标记为” CH343”用于烧写固件，右边标记为“ESP32C6”用于与EasyCon通讯
 
 # 驱动
 - 开发板默认USB转UART芯片通常为ch210x [乐鑫官方下载地址](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads)
+- 假设你购买的C6芯片为CH343，请下载 [CH343SER.EXE](https://www.wch.cn/downloads/CH343SER_EXE.html) 
 - 搞不懂的找卖你板子的商家
 
 # 下载
@@ -15,13 +18,14 @@
 
 # 已知问题
 - 暂时只提供手柄功能，默认颜色与Pro2一致，按钮颜色为Pokemon ZA绿，其他功能未全量测试，不建议使用
+- **除第一次配对外，其他时候不要打开“更改握法/顺序”来配对手柄**，目前存在HID报告堵塞的问题，暂未查明原因，上电就会自动广播并重连  
 - **不支持Amiibo**
 - 暂未支持修改颜色
 - 暂未支持修改序列号
 - **暂时会提示手柄升级固件，请勿点击升级**，没改的原因是升级会导致协议变化，暂时未逆向升级版本的数据包
 
 # 烧写
-- 使用板子官方的下载工具 [flash_downlaod_tool](https://dl.espressif.com/public/flash_download_tool.zip),注意版本,旧版不支持ESP32C61
+- 使用板子官方的下载工具 [flash_downlaod_tool](https://dl.espressif.com/public/flash_download_tool.zip),注意版本,旧版不支持ESP32C6/C61
 - 下载工具使用说明请参考 [Flash 下载工具用户指南](https://docs.espressif.com/projects/esp-test-tools/zh_CN/latest/esp32/production_stage/tools/flash_download_tool.html)
 - 搞不懂的先问AI，一旦界面上显示“SYNC”字样，不是你没选对口，就是没进入下载模式
 - ESP32-C61-DevKitC-1 固件烧录图示，按图操作
