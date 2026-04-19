@@ -9,8 +9,8 @@ CONFIG_BT_NIMBLE_ENABLED=y
 CONFIG_TRANSPORT_LAYER_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 
-# C6 single-core: use 20ms interval to avoid mbuf allocation failures
-CONFIG_HID_REPORT_INTERVAL=20
+# 15ms is OK, if mbuf memory not released, maybe set to 20ms
+CONFIG_HID_REPORT_INTERVAL=15
 
 # FLASH
 CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y

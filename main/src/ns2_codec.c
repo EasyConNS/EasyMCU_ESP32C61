@@ -339,12 +339,17 @@ static uint8_t cmd_0x0c_handler(const uint8_t subcmd, const uint16_t payload_len
             memset(data_out, 0x00, 0x04);
             memcpy(data_out + 4, feature_info, 0x08);
             return 0x0c;
+        // enable features
+        case 0x04:
+            // TODO The hid_task is blocked during reconnection to avoid resource occupation.
+            // yet the issue remains unresolved and pending further handling.
+            device_status_set(DEV_READY);
+            memset(data_out, 0x00, 0x04);
+            return 0x04;
         // set feature mask
         case 0x02:
         // clear feature mask
         case 0x03:
-        // enable features
-        case 0x04:
         // disable features
         case 0x05:
             // all response 

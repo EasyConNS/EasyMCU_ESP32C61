@@ -12,19 +12,19 @@ static void restart_adv_timer_cb(TimerHandle_t xTimer) {
 }
 
 static void print_conn_desc(struct ble_gap_conn_desc* desc) {
-  ESP_LOGI(LOG_BLE_GAP, "handle=%d our_ota_addr_type=%d our_ota_addr=", 
+  ESP_LOGD(LOG_BLE_GAP, "handle=%d our_ota_addr_type=%d our_ota_addr=", 
     desc->conn_handle, desc->our_ota_addr.type);
   log_print_addr(desc->our_ota_addr.val);
-  ESP_LOGI(LOG_BLE_GAP, " our_id_addr_type=%d our_id_addr=",
+  ESP_LOGD(LOG_BLE_GAP, " our_id_addr_type=%d our_id_addr=",
     desc->our_id_addr.type);
   log_print_addr(desc->our_id_addr.val);
-  ESP_LOGI(LOG_BLE_GAP, " peer_ota_addr_type=%d peer_ota_addr=",
+  ESP_LOGD(LOG_BLE_GAP, " peer_ota_addr_type=%d peer_ota_addr=",
     desc->peer_ota_addr.type);
   log_print_addr(desc->peer_ota_addr.val);
-  ESP_LOGI(LOG_BLE_GAP, " peer_id_addr_type=%d peer_id_addr=",
+  ESP_LOGD(LOG_BLE_GAP, " peer_id_addr_type=%d peer_id_addr=",
     desc->peer_id_addr.type);
   log_print_addr(desc->peer_id_addr.val);
-  ESP_LOGI(LOG_BLE_GAP, " conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+  ESP_LOGD(LOG_BLE_GAP, " conn_itvl=%d conn_latency=%d supervision_timeout=%d "
     "encrypted=%d authenticated=%d bonded=%d\n",
     desc->conn_itvl, desc->conn_latency,
     desc->supervision_timeout,
@@ -85,11 +85,11 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
       g_hid_controller.ops->stop_task(&g_hid_controller);
       return 0;
     case BLE_GAP_EVENT_CONN_UPDATE:
-      ESP_LOGI(LOG_BLE_GAP, "connection updated, conn_handle=%d, status=%d", 
+      ESP_LOGD(LOG_BLE_GAP, "connection updated, conn_handle=%d, status=%d", 
         event->conn_update.conn_handle, event->conn_update.status);
       return 0;
     case BLE_GAP_EVENT_CONN_UPDATE_REQ:
-      ESP_LOGI(LOG_BLE_GAP, "connection update request, conn_handle=%d", event->conn_update_req.conn_handle);
+      ESP_LOGD(LOG_BLE_GAP, "connection update request, conn_handle=%d", event->conn_update_req.conn_handle);
       // set conn params
       *event->conn_update_req.self_params = *event->conn_update_req.peer_params;
       return 0;
@@ -103,7 +103,7 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
       print_conn_desc(&desc);
       return 0;
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-      ESP_LOGI(LOG_BLE_GAP, "passkey action event; action=%d", event->passkey.params.action);
+      ESP_LOGD(LOG_BLE_GAP, "passkey action event; action=%d", event->passkey.params.action);
       return 0;
     case BLE_GAP_EVENT_NOTIFY_TX:
       ESP_LOGD(LOG_BLE_GAP, "notify_tx event; conn_handle=%d attr_handle=%d "
@@ -114,7 +114,7 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
         event->notify_tx.indication);
       return 0;
     case BLE_GAP_EVENT_SUBSCRIBE:
-      ESP_LOGD(LOG_BLE_GAP, "subscribe event; conn_handle=0x00%02x attr_handle=0x00%02x "
+      ESP_LOGI(LOG_BLE_GAP, "subscribe event; conn_handle=0x00%02x attr_handle=0x00%02x "
         "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
         event->subscribe.conn_handle,
         event->subscribe.attr_handle,
@@ -131,12 +131,14 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
       
       // 0x000e init hid report
       if (event->subscribe.attr_handle == 0x000e && event->subscribe.cur_notify == 1) {
-        device_status_set(DEV_READY);
+        // reset hid report buffer
+        g_hid_controller.ops->hid_reset(&g_hid_controller);
+        // start hid task
         g_hid_controller.ops->start_task(&g_hid_controller);
       }
       break;
     case BLE_GAP_EVENT_MTU:
-      ESP_LOGI(LOG_BLE_GAP, "mtu changed, conn_handle=%d, channel_id=%d, mtu=%d", 
+      ESP_LOGD(LOG_BLE_GAP, "mtu changed, conn_handle=%d, channel_id=%d, mtu=%d", 
         event->mtu.conn_handle, event->mtu.channel_id, event->mtu.value);
       return 0;
     case BLE_GAP_EVENT_REPEAT_PAIRING:
@@ -145,11 +147,11 @@ int handle_gap_event(struct ble_gap_event* event, void* arg) {
       ble_store_util_delete_peer(&desc.peer_id_addr);
       return BLE_GAP_REPEAT_PAIRING_RETRY;
     case BLE_GAP_EVENT_PARING_COMPLETE:
-      ESP_LOGI(LOG_BLE_GAP, "paring complete event; status=%d",
+      ESP_LOGD(LOG_BLE_GAP, "paring complete event; status=%d",
         event->pairing_complete.status);
       return 0;
     case BLE_GAP_EVENT_AUTHORIZE:
-      ESP_LOGI(LOG_BLE_GAP, "authorize event; conn_handle=%d", event->authorize.conn_handle);
+      ESP_LOGD(LOG_BLE_GAP, "authorize event; conn_handle=%d", event->authorize.conn_handle);
       return 0;
     default:
       break;
