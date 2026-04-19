@@ -53,6 +53,7 @@ typedef struct {
     void (*stop_task)(controller_handle_t *ctrl);
     controller_hid_report_t* (*get_back_buffer)(controller_handle_t *ctrl);
     void (*hid_commit)(controller_handle_t *ctrl);
+    void (*hid_reset)(controller_handle_t *ctrl);
 } controller_ops_t;
 
 struct controller_handle {

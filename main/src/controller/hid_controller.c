@@ -27,14 +27,20 @@ static void controller_task(void *arg) {
     const TickType_t xInterval = pdMS_TO_TICKS(HID_REPORT_INTERVAL);
 
     ESP_LOGI(LOG_HID, "controller report task start, interval: %dms", HID_REPORT_INTERVAL);
-    esp_log_level_set(LOG_HID, ESP_LOG_ERROR);
 
     while (1) {
         // check if notification is enabled
         g_subscribe_state_t *state = subscribe_entry_get(ctrl->ns2_notification_handle);
         if (state == NULL || !state->notify_enabled ||
             state->conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            ESP_LOGD(LOG_HID, "notification not enabled or no connection, skipping report send");
             vTaskDelay(pdMS_TO_TICKS(100));  // waiting for enable
+            continue;
+        }
+
+        if (g_device_status != DEV_READY) {
+            ESP_LOGD(LOG_HID, "device not ready, current status: %d", g_device_status);
+            vTaskDelay(pdMS_TO_TICKS(100));  // waiting for device ready
             continue;
         }
 
@@ -222,6 +228,14 @@ static void controller_hid_commit_impl(controller_handle_t *ctrl) {
     ctrl->buffer.swap_request = 1;
 }
 
+static void controller_hid_reset_impl(controller_handle_t *ctrl) {
+    if (ctrl == NULL || ctrl->hid_ops == NULL || ctrl->hid_ops->report_init == NULL) {
+        return;
+    }
+    ctrl->hid_ops->report_init(ctrl->buffer.front_buffer);
+    ctrl->hid_ops->report_init(ctrl->buffer.back_buffer);
+}
+
 const controller_ops_t controller_ops = {
     .name           = "controller",
     .init           = controller_init_impl,
@@ -230,4 +244,5 @@ const controller_ops_t controller_ops = {
     .stop_task      = controller_stop_task_impl,
     .get_back_buffer = controller_get_back_buffer_impl,
     .hid_commit     = controller_hid_commit_impl,
+    .hid_reset      = controller_hid_reset_impl,
 };

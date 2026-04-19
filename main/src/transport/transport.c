@@ -48,8 +48,6 @@ static void transport_protocol_task(void *arg)
 {
     (void)arg;
 
-    ESP_LOGI(LOG_TRANSPORT, "Protocol dispatcher task started");
-
     while (1) {
         if (g_protocol_inst == NULL || g_transport.ops == NULL || !g_transport.ops->is_ready(&g_transport)) {
             vTaskDelay(pdMS_TO_TICKS(100));
