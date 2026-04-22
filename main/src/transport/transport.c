@@ -67,8 +67,10 @@ static void transport_protocol_task(void *arg)
             vTaskDelay(2);
         } else {
             /* PARSE_INVALID: no parser matched or frame error.
-             * Yield briefly to avoid tight spinning on garbage data.
+             * Discard one byte to avoid deadlock on stale leading data.
              */
+            uint8_t discard;
+            zc_read_byte(&g_transport_rx_ringbuf, &discard);
             vTaskDelay(1);
         }
     }

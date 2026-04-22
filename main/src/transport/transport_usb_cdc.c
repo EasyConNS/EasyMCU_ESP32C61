@@ -94,12 +94,20 @@ static void transport_usb_cdc_rx_task(void *arg)
 {
   transport_usb_cdc_ctx_t *ctx = (transport_usb_cdc_ctx_t *)arg;
   transport_handle_t      *tp  = ctx->tp;
+  bool was_connected = false;
 
   while (ctx->running) {
     if (!tud_cdc_connected()) {
+      was_connected = false;
       vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
+
+    if (!was_connected && tp->rx_buffer != NULL) {
+      zc_reset(tp->rx_buffer);
+      ESP_LOGW(TAG, "USB CDC reconnected, RX buffer reset");
+    }
+    was_connected = true;
 
     uint8_t *ptr = NULL;
     uint32_t avail = zc_reserve(tp->rx_buffer, &ptr);
